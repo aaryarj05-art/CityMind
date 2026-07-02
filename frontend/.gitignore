@@ -1,5 +1,7 @@
+# ==================================================
 # Logs
-logs
+# ==================================================
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,18 +9,135 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# ==================================================
+# Environment variables and secrets
+# ==================================================
+.env
+.env.*
+!.env.example
+frontend/.env
+backend/.env
 *.local
 
-# Editor directories and files
+# ==================================================
+# Frontend: Node / Vite / React
+# ==================================================
+node_modules/
+frontend/node_modules/
+
+dist/
+dist-ssr/
+frontend/dist/
+
+.vite/
+frontend/.vite/
+
+coverage/
+frontend/coverage/
+
+# ==================================================
+# Backend: Python / FastAPI
+# ==================================================
+__pycache__/
+*.py[cod]
+*$py.class
+
+*.so
+.Python
+
+.venv/
+venv/
+env/
+ENV/
+
+backend/.venv/
+backend/venv/
+
+.pytest_cache/
+backend/.pytest_cache/
+
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.pytype/
+
+.coverage
+.coverage.*
+htmlcov/
+
+# ==================================================
+# SQLite databases
+# ==================================================
+*.db
+*.sqlite
+*.sqlite3
+
+backend/citymind.db
+
+# ==================================================
+# Python build files
+# ==================================================
+build/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ==================================================
+# IDE and editor files
+# ==================================================
 .vscode/*
 !.vscode/extensions.json
-.idea
+
+.idea/
 .DS_Store
+
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*~
+
+# ==================================================
+# Operating-system files
+# ==================================================
+Thumbs.db
+Desktop.ini
+
+# ==================================================
+# Temporary files
+# ==================================================
+tmp/
+temp/
+*.tmp
+*.bak
+*.cache
+
+# ==================================================
+# Test and browser artifacts
+# ==================================================
+playwright-report/
+test-results/
+screenshots/
+
+# ==================================================
+# Keep documentation and examples
+# ==================================================
+!README.md
+!CITYMIND_SPEC.md
+!CURRENT_STATUS.md
+!frontend/.env.example
+!backend/.env.example
