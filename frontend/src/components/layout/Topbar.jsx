@@ -1,6 +1,6 @@
-import { Bell, MapPin, AlertTriangle, Siren, Activity, Rss, CheckCheck } from 'lucide-react';
+import { Bell, MapPin, AlertTriangle, Siren, Activity, Rss, CheckCheck, Brain } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { dashboardAPI } from '../../services/api';
+import { dashboardAPI, riskAPI } from '../../services/api';
 
 const Topbar = ({ title }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -39,81 +39,119 @@ const Topbar = ({ title }) => {
     return () => document.removeEventListener('keydown', handleEscape);
   }, [showNotifications]);
 
-  // Derive notifications from dashboard data
+  // Derive notifications from Phase 2 risk data + Phase 1 operational data
   const fetchNotifications = useCallback(async () => {
     try {
-      const res = await dashboardAPI.getDashboardData();
-      const data = res.data;
+      const [riskAreasRes, riskIncidentsRes, riskSummaryRes, dashRes] = await Promise.allSettled([
+        riskAPI.getAreas(),
+        riskAPI.getIncidents(),
+        riskAPI.getSummary(),
+        dashboardAPI.getDashboardData()
+      ]);
+
       const derived = [];
       let notifId = 1;
 
-      // Critical zone alerts
-      if (data.priority_zones) {
-        data.priority_zones.forEach(zone => {
-          if (zone.status === 'Critical') {
+      // Phase 2 risk zone alerts — Critical and High risk areas
+      if (riskAreasRes.status === 'fulfilled') {
+        const riskAreas = riskAreasRes.value.data;
+        riskAreas.forEach(area => {
+          if (area.risk_level === 'Critical') {
             derived.push({
               id: notifId++,
-              title: 'Critical Zone Alert',
-              description: `${zone.name} has reached critical operational score (${zone.operational_score}/100).`,
+              title: 'Critical Risk Zone',
+              description: `${area.area_name} has a critical risk score of ${area.risk_score.toFixed(1)}/100. ${area.explanation}`,
               severity: 'critical',
-              area: zone.name,
-              timestamp: zone.last_updated || new Date().toISOString(),
+              area: area.area_name,
+              timestamp: area.last_calculated || new Date().toISOString(),
+              icon: 'zone',
+            });
+          } else if (area.risk_level === 'High') {
+            derived.push({
+              id: notifId++,
+              title: 'High Risk Zone',
+              description: `${area.area_name} has a high risk score of ${area.risk_score.toFixed(1)}/100. Top driver: ${area.top_contributing_factors?.[0]?.factor?.replace('_', ' ') || 'multiple factors'}.`,
+              severity: 'high',
+              area: area.area_name,
+              timestamp: area.last_calculated || new Date().toISOString(),
               icon: 'zone',
             });
           }
         });
       }
 
-      // High-severity active incidents
-      if (data.recent_incidents) {
-        data.recent_incidents.forEach(inc => {
-          if (inc.severity === 'Critical' || inc.severity === 'High') {
+      // Phase 2 priority incidents — Immediate and Urgent only
+      if (riskIncidentsRes.status === 'fulfilled') {
+        const riskIncidents = riskIncidentsRes.value.data;
+        riskIncidents.forEach(inc => {
+          if (inc.priority_level === 'Immediate' || inc.priority_level === 'Urgent') {
             derived.push({
               id: notifId++,
-              title: `${inc.severity} Incident`,
-              description: `${inc.title} — ${inc.responding_department} responding.`,
-              severity: inc.severity === 'Critical' ? 'critical' : 'high',
-              area: `Area ${inc.area_id}`,
-              timestamp: inc.reported_at,
+              title: `${inc.priority_level} Priority Incident`,
+              description: `${inc.title} — Priority score: ${inc.priority_score.toFixed(1)}/100. ${inc.recommended_response_urgency}.`,
+              severity: inc.priority_level === 'Immediate' ? 'critical' : 'high',
+              area: inc.area_name,
+              timestamp: inc.last_calculated || new Date().toISOString(),
               icon: 'incident',
             });
           }
         });
       }
 
-      // Feed delays
-      if (data.summary && data.summary.feed_statuses) {
-        Object.entries(data.summary.feed_statuses).forEach(([feed, status]) => {
-          if (status === 'Delayed' || status === 'Offline') {
-            derived.push({
-              id: notifId++,
-              title: `Feed ${status}`,
-              description: `${feed} is currently ${status.toLowerCase()}.`,
-              severity: status === 'Offline' ? 'critical' : 'high',
-              area: null,
-              timestamp: new Date().toISOString(),
-              icon: 'feed',
-            });
-          }
-        });
+      // Phase 2 city-wide summary alert
+      if (riskSummaryRes.status === 'fulfilled') {
+        const summary = riskSummaryRes.value.data;
+        if (summary.average_city_risk_score >= 60) {
+          derived.push({
+            id: notifId++,
+            title: 'City Risk Elevated',
+            description: `City-wide average risk is ${summary.average_city_risk_score.toFixed(1)}/100 with ${summary.critical_area_count} critical and ${summary.high_risk_area_count} high-risk zones.`,
+            severity: summary.average_city_risk_score >= 70 ? 'critical' : 'high',
+            area: null,
+            timestamp: summary.last_calculated || new Date().toISOString(),
+            icon: 'zone',
+          });
+        }
       }
 
-      // Resource shortages (if availability < 30%)
-      if (data.resource_summary) {
-        Object.entries(data.resource_summary).forEach(([key, val]) => {
-          if (val.total > 0 && val.available / val.total < 0.3) {
-            const label = key.charAt(0).toUpperCase() + key.slice(1);
-            derived.push({
-              id: notifId++,
-              title: 'Resource Shortage',
-              description: `Only ${val.available}/${val.total} ${label} units available.`,
-              severity: val.available === 0 ? 'critical' : 'high',
-              area: null,
-              timestamp: new Date().toISOString(),
-              icon: 'resource',
-            });
-          }
-        });
+      // Phase 1 operational alerts — Feed delays and Resource shortages
+      if (dashRes.status === 'fulfilled') {
+        const data = dashRes.value.data;
+
+        // Feed delays
+        if (data.summary && data.summary.feed_statuses) {
+          Object.entries(data.summary.feed_statuses).forEach(([feed, status]) => {
+            if (status === 'Delayed' || status === 'Offline') {
+              derived.push({
+                id: notifId++,
+                title: `Feed ${status}`,
+                description: `${feed} is currently ${status.toLowerCase()}.`,
+                severity: status === 'Offline' ? 'critical' : 'high',
+                area: null,
+                timestamp: new Date().toISOString(),
+                icon: 'feed',
+              });
+            }
+          });
+        }
+
+        // Resource shortages (if availability < 30%)
+        if (data.resource_summary) {
+          Object.entries(data.resource_summary).forEach(([key, val]) => {
+            if (val.total > 0 && val.available / val.total < 0.3) {
+              const label = key.charAt(0).toUpperCase() + key.slice(1);
+              derived.push({
+                id: notifId++,
+                title: 'Resource Shortage',
+                description: `Only ${val.available}/${val.total} ${label} units available.`,
+                severity: val.available === 0 ? 'critical' : 'high',
+                area: null,
+                timestamp: new Date().toISOString(),
+                icon: 'resource',
+              });
+            }
+          });
+        }
       }
 
       setNotifications(derived);

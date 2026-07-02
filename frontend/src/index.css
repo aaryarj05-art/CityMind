@@ -18,6 +18,27 @@
   body {
     @apply bg-navy-900 text-slate-200 antialiased;
   }
+
+  /* Fix native select dropdown options on Windows Chrome */
+  select {
+    background-color: var(--color-navy-900);
+    color: #e2e8f0; /* slate-200 */
+  }
+
+  select option {
+    background-color: var(--color-navy-900);
+    color: #e2e8f0; /* slate-200 */
+    padding: 4px 8px;
+  }
+
+  select option:checked {
+    background-color: var(--color-navy-700);
+    color: #ffffff;
+  }
+
+  select option:hover {
+    background-color: var(--color-navy-800);
+  }
 }
 
 .leaflet-container {

@@ -35,4 +35,12 @@ export const complaintsAPI = {
   getAll: () => api.get('/complaints'),
 };
 
+export const riskAPI = {
+  getSummary: () => api.get('/risk/summary'),
+  getAreas: (params) => api.get('/risk/areas', { params }),
+  getAreaById: (id) => api.get(`/risk/areas/${id}`),
+  getIncidents: (params) => api.get('/risk/incidents', { params }),
+  getIncidentById: (id) => api.get(`/risk/incidents/${id}`),
+};
+
 export default api;

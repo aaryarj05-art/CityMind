@@ -1,18 +1,18 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell
+  PieChart, Pie, Cell, ScatterChart, Scatter, ZAxis, Label
 } from 'recharts';
 import PageContainer from '../components/layout/PageContainer';
 import LoadingState from '../components/common/LoadingState';
 import ErrorState from '../components/common/ErrorState';
-import { incidentsAPI, resourcesAPI, areasAPI } from '../services/api';
-import { AlertCircle, Target, Activity, Shield } from 'lucide-react';
+import { riskAPI } from '../services/api';
+import { AlertCircle, Target, Activity, Shield, Brain } from 'lucide-react';
 
-const COLORS = ['#3b82f6', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6', '#64748b'];
+const COLORS = ['#ef4444', '#f97316', '#eab308', '#10b981', '#3b82f6', '#8b5cf6', '#64748b'];
 
 const Analytics = () => {
-  const [data, setData] = useState({ incidents: [], resources: [], areas: [] });
+  const [data, setData] = useState({ summary: null, areas: [], incidents: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -20,18 +20,18 @@ const Analytics = () => {
     setLoading(true);
     setError(null);
     try {
-      const [incRes, resRes, areasRes] = await Promise.all([
-        incidentsAPI.getAll(),
-        resourcesAPI.getAll(),
-        areasAPI.getAll()
+      const [sumRes, areasRes, incRes] = await Promise.all([
+        riskAPI.getSummary(),
+        riskAPI.getAreas(),
+        riskAPI.getIncidents()
       ]);
       setData({
-        incidents: incRes.data,
-        resources: resRes.data,
-        areas: areasRes.data
+        summary: sumRes.data,
+        areas: areasRes.data,
+        incidents: incRes.data
       });
     } catch (err) {
-      setError(err.message || 'Failed to load analytics data');
+      setError(err.message || 'Failed to load dynamic risk analytics from backend');
     } finally {
       setLoading(false);
     }
@@ -41,140 +41,180 @@ const Analytics = () => {
     fetchAnalyticsData();
   }, []);
 
-  // Compute Metrics
-  const metrics = useMemo(() => {
-    if (!data.incidents.length) return null;
+  // Compute stats metrics
+  const stats = useMemo(() => {
+    if (!data.summary || !data.areas.length) return null;
     
+    // Most common incident category
     const categoryCounts = data.incidents.reduce((acc, inc) => {
-      acc[inc.category] = (acc[inc.category] || 0) + 1;
+      // In Phase 2 incidents priority data we don't have the category directly on the root of the incident,
+      // but wait! The API response matches IncidentPriority which contains severity, status, title.
+      // We can extract category from the title (e.g. "Road Accident at Kuvempunagar" -> "Road Accident")
+      // or map standard category keywords found in title.
+      const title = inc.title.toLowerCase();
+      let category = 'General Incident';
+      if (title.includes('road accident')) category = 'Road Accident';
+      else if (title.includes('traffic congestion')) category = 'Traffic Congestion';
+      else if (title.includes('waterlogging')) category = 'Waterlogging';
+      else if (title.includes('fire')) category = 'Fire';
+      else if (title.includes('medical emergency')) category = 'Medical Emergency';
+      else if (title.includes('public disturbance')) category = 'Public Disturbance';
+      
+      acc[category] = (acc[category] || 0) + 1;
       return acc;
     }, {});
     
-    let mostCommonCat = '';
-    let maxCatCount = 0;
+    let topCat = 'N/A';
+    let maxCount = 0;
     Object.entries(categoryCounts).forEach(([cat, count]) => {
-      if (count > maxCatCount) {
-        maxCatCount = count;
-        mostCommonCat = cat;
+      if (count > maxCount) {
+        maxCount = count;
+        topCat = cat;
       }
     });
 
-    const avgScore = data.areas.length > 0 
-      ? data.areas.reduce((sum, a) => sum + a.operational_score, 0) / data.areas.length 
-      : 0;
-      
-    const availableRes = data.resources.filter(r => r.status === 'Available').length;
-    const availPercent = data.resources.length > 0 
-      ? Math.round((availableRes / data.resources.length) * 100) 
-      : 0;
-
     return {
+      avgRiskScore: data.summary.average_city_risk_score,
+      criticalZonesCount: data.summary.critical_area_count,
+      highZonesCount: data.summary.high_risk_area_count,
       totalIncidents: data.incidents.length,
-      mostCommonCategory: mostCommonCat,
-      averageScore: Math.round(avgScore),
-      resourceAvailability: availPercent
+      topCategory: topCat,
+      topDriver: data.summary.top_contributing_factor_city_wide 
+        ? data.summary.top_contributing_factor_city_wide.replace('_', ' ') : 'N/A'
     };
   }, [data]);
 
-  // Compute Chart Data
-  const chartData = useMemo(() => {
-    // 1. Incidents by Category (Pie)
-    const incCatMap = {};
-    data.incidents.forEach(inc => { incCatMap[inc.category] = (incCatMap[inc.category] || 0) + 1; });
-    const incidentsByCategory = Object.keys(incCatMap).map(name => ({ name, value: incCatMap[name] }));
+  // Compute charts data
+  const chartsData = useMemo(() => {
+    if (!data.areas.length) return null;
 
-    // 2. Incidents by Severity (Bar)
-    const incSevMap = { Critical: 0, High: 0, Moderate: 0, Low: 0 };
-    data.incidents.forEach(inc => { if (incSevMap[inc.severity] !== undefined) incSevMap[inc.severity]++; });
-    const incidentsBySeverity = Object.keys(incSevMap).map(name => ({ name, count: incSevMap[name] }));
+    // 1. Risk level distribution (Pie)
+    const levelCounts = { Critical: 0, High: 0, Moderate: 0, Low: 0 };
+    data.areas.forEach(a => {
+      if (levelCounts[a.risk_level] !== undefined) levelCounts[a.risk_level]++;
+    });
+    const riskDistribution = Object.entries(levelCounts).map(([name, value]) => ({ name, value }));
 
-    // 3. Resources by Status (Bar)
-    const resStatusMap = {};
-    data.resources.forEach(res => { resStatusMap[res.status] = (resStatusMap[res.status] || 0) + 1; });
-    const resourcesByStatus = Object.keys(resStatusMap).map(name => ({ name, count: resStatusMap[name] }));
+    // 2. Top 10 highest-risk areas (Bar)
+    const topAreas = [...data.areas]
+      .sort((a, b) => b.risk_score - a.risk_score)
+      .slice(0, 10)
+      .map(a => ({ name: a.area_name, score: Math.round(a.risk_score * 10) / 10 }));
 
-    // 4. Area Operational Scores (Bar)
-    const areaScores = data.areas.map(a => ({ name: `Area ${a.id}`, score: a.operational_score }))
-                                 .sort((a, b) => b.score - a.score);
+    // 3. Average factor contribution city-wide (Bar)
+    const factorTotals = {};
+    let areaCount = data.areas.length;
+    data.areas.forEach(a => {
+      Object.entries(a.weighted_contributions).forEach(([factor, contribution]) => {
+        factorTotals[factor] = (factorTotals[factor] || 0) + contribution;
+      });
+    });
+    const avgFactorContributions = Object.entries(factorTotals).map(([factor, total]) => ({
+      name: factor.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      contribution: Math.round((total / areaCount) * 10) / 10
+    })).sort((a, b) => b.contribution - a.contribution);
 
-    return { incidentsByCategory, incidentsBySeverity, resourcesByStatus, areaScores };
+    // 4. Incident priority distribution (Bar)
+    const priorityCounts = { Immediate: 0, Urgent: 0, Elevated: 0, Routine: 0 };
+    data.incidents.forEach(inc => {
+      if (priorityCounts[inc.priority_level] !== undefined) priorityCounts[inc.priority_level]++;
+    });
+    const priorityDistribution = Object.entries(priorityCounts).map(([name, count]) => ({ name, count }));
+
+    // 5. Risk score versus incident count (Scatter)
+    // Count incidents per area
+    const incsPerArea = data.incidents.reduce((acc, inc) => {
+      acc[inc.area_id] = (acc[inc.area_id] || 0) + 1;
+      return acc;
+    }, {});
+    const riskVsIncident = data.areas.map(a => ({
+      name: a.area_name,
+      x: Math.round(a.risk_score * 10) / 10, // Risk Score (X-axis)
+      y: incsPerArea[a.area_id] || 0,        // Incident Count (Y-axis)
+      z: 5                                   // Marker size
+    }));
+
+    return { riskDistribution, topAreas, avgFactorContributions, priorityDistribution, riskVsIncident };
   }, [data]);
 
-  if (loading) return <PageContainer title="Analytics"><LoadingState /></PageContainer>;
-  if (error) return <PageContainer title="Analytics"><ErrorState message={error} onRetry={fetchAnalyticsData} /></PageContainer>;
+  if (loading) return <PageContainer title="Analytics"><LoadingState message="Fetching analytics calculation tables..." /></PageContainer>;
+  if (error) return <PageContainer title="Analytics"><ErrorState message="Could not build deterministic risk charts" details={error} onRetry={fetchAnalyticsData} /></PageContainer>;
+  if (!chartsData) return <PageContainer title="Analytics"><EmptyState message="No calculations found to render" /></PageContainer>;
 
-  const CustomTooltip = ({ active, payload, label }) => {
+  const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-navy-900 border border-navy-700 p-3 rounded-lg shadow-lg">
-          <p className="text-white font-medium text-sm mb-1">{label || payload[0].name}</p>
-          <p className="text-blue-400 text-sm">{`${payload[0].value}`}</p>
+        <div className="bg-navy-950 border border-navy-700 p-3 rounded-lg shadow-lg">
+          <p className="text-white font-semibold text-sm mb-1">{payload[0].name || payload[0].payload.name}</p>
+          <p className="text-blue-400 text-sm">{`${payload[0].value.toFixed ? payload[0].value.toFixed(1) : payload[0].value}`}</p>
         </div>
       );
     }
     return null;
   };
 
+  // Color mapper for Risk Distribution levels
+  const getLevelColor = (level) => {
+    switch (level) {
+      case 'Critical': return '#ef4444'; // Red
+      case 'High': return '#f97316';     // Orange
+      case 'Moderate': return '#eab308'; // Yellow
+      case 'Low': return '#10b981';      // Emerald
+      default: return '#3b82f6';
+    }
+  };
+
   return (
     <PageContainer title="City Analytics">
-      <div className="bg-navy-800/50 border border-navy-700 rounded-xl p-4 mb-6 flex items-center gap-3">
-        <Activity className="w-5 h-5 text-blue-400" />
+      {/* Dynamic Warning Header */}
+      <div className="bg-navy-800 border border-navy-700 rounded-xl p-4 mb-6 flex items-center gap-3">
+        <Brain className="w-5 h-5 text-blue-400" />
         <p className="text-sm text-slate-300 font-medium">
-          Demonstration analytics based on seeded Mysuru operational data.
+          Deterministic risk intelligence based on seeded Mysuru operational data.
         </p>
       </div>
 
-      {/* Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+      {/* Stats Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-navy-800 border border-navy-700 p-5 rounded-xl">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-slate-400 text-sm font-medium mb-1">Total Incidents</p>
-              <h3 className="text-2xl font-bold text-white">{metrics?.totalIncidents || 0}</h3>
+          <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">Avg City Risk</p>
+          <h3 className="text-3xl font-extrabold text-white">{stats.avgRiskScore.toFixed(1)}<span className="text-sm font-normal text-slate-500">/100</span></h3>
+        </div>
+        <div className="bg-navy-800 border border-navy-700 p-5 rounded-xl">
+          <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Critical & High-Risk Zones</p>
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col">
+              <span className="text-3xl font-extrabold text-red-400">{stats.criticalZonesCount}</span>
+              <span className="text-[10px] text-slate-500 uppercase font-medium">Critical</span>
             </div>
-            <div className="p-2 bg-blue-500/10 rounded-lg"><Target className="w-5 h-5 text-blue-400" /></div>
+            <div className="h-8 w-px bg-navy-700/50" />
+            <div className="flex flex-col">
+              <span className="text-3xl font-extrabold text-orange-400">{stats.highZonesCount}</span>
+              <span className="text-[10px] text-slate-500 uppercase font-medium">High Risk</span>
+            </div>
           </div>
         </div>
         <div className="bg-navy-800 border border-navy-700 p-5 rounded-xl">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-slate-400 text-sm font-medium mb-1">Most Common Issue</p>
-              <h3 className="text-xl font-bold text-white leading-tight mt-1">{metrics?.mostCommonCategory || 'N/A'}</h3>
-            </div>
-            <div className="p-2 bg-orange-500/10 rounded-lg"><AlertCircle className="w-5 h-5 text-orange-400" /></div>
-          </div>
+          <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">Primary Driver</p>
+          <h3 className="text-xl font-extrabold text-white capitalize leading-tight mt-1 truncate">{stats.topDriver}</h3>
         </div>
         <div className="bg-navy-800 border border-navy-700 p-5 rounded-xl">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-slate-400 text-sm font-medium mb-1">Avg Operational Score</p>
-              <h3 className="text-2xl font-bold text-white">{metrics?.averageScore || 0}<span className="text-sm font-normal text-slate-500">/100</span></h3>
-            </div>
-            <div className="p-2 bg-red-500/10 rounded-lg"><Activity className="w-5 h-5 text-red-400" /></div>
-          </div>
-        </div>
-        <div className="bg-navy-800 border border-navy-700 p-5 rounded-xl">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-slate-400 text-sm font-medium mb-1">Resource Availability</p>
-              <h3 className="text-2xl font-bold text-white">{metrics?.resourceAvailability || 0}%</h3>
-            </div>
-            <div className="p-2 bg-emerald-500/10 rounded-lg"><Shield className="w-5 h-5 text-emerald-400" /></div>
-          </div>
+          <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">Total Incidents</p>
+          <h3 className="text-3xl font-extrabold text-white">{stats.totalIncidents}</h3>
         </div>
       </div>
 
-      {/* Charts Grid */}
+      {/* Grid of 5 Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-8">
         
-        {/* Chart 1: Incidents by Category */}
-        <div className="bg-navy-800 border border-navy-700 rounded-xl p-5">
-          <h3 className="text-white font-medium mb-6">Incidents by Category</h3>
+        {/* Chart 1: Risk Distribution by Level */}
+        <div className="bg-navy-800 border border-navy-700 rounded-xl p-5 flex flex-col justify-between">
+          <h3 className="text-white font-semibold text-sm mb-6 uppercase tracking-wider">1. Risk Distribution by Level</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={chartData.incidentsByCategory}
+                  data={chartsData.riskDistribution}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
@@ -182,65 +222,105 @@ const Analytics = () => {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {chartData.incidentsByCategory.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  {chartsData.riskDistribution.map((entry) => (
+                    <Cell key={entry.name} fill={getLevelColor(entry.name)} />
                   ))}
                 </Pie>
                 <RechartsTooltip content={<CustomTooltip />} />
                 <Legend 
                   verticalAlign="bottom" 
                   height={36} 
-                  wrapperStyle={{ fontSize: '12px', color: '#cbd5e1' }}
+                  wrapperStyle={{ fontSize: '11px', color: '#cbd5e1' }}
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Chart 2: Incidents by Severity */}
+        {/* Chart 2: Top 10 Highest-Risk Areas */}
         <div className="bg-navy-800 border border-navy-700 rounded-xl p-5">
-          <h3 className="text-white font-medium mb-6">Incidents by Severity</h3>
+          <h3 className="text-white font-semibold text-sm mb-6 uppercase tracking-wider">2. Top 10 Highest-Risk Areas</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData.incidentsBySeverity} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <BarChart data={chartsData.topAreas} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: '#334155', opacity: 0.4 }} />
-                <Bar dataKey="count" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Chart 3: Resources by Status */}
-        <div className="bg-navy-800 border border-navy-700 rounded-xl p-5">
-          <h3 className="text-white font-medium mb-6">Resources by Status</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData.resourcesByStatus} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: '#334155', opacity: 0.4 }} />
-                <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Chart 4: Area Operational Scores */}
-        <div className="bg-navy-800 border border-navy-700 rounded-xl p-5">
-          <h3 className="text-white font-medium mb-6">Area Operational Scores</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData.areaScores} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} domain={[0, 100]} />
                 <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: '#334155', opacity: 0.4 }} />
                 <Bar dataKey="score" fill="#ef4444" radius={[4, 4, 0, 0]} />
               </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Chart 3: Average Factor Contribution City-Wide */}
+        <div className="bg-navy-800 border border-navy-700 rounded-xl p-5">
+          <h3 className="text-white font-semibold text-sm mb-6 uppercase tracking-wider">3. Average Factor Contribution City-Wide</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart 
+                data={chartsData.avgFactorContributions} 
+                layout="vertical"
+                margin={{ top: 10, right: 10, left: 10, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
+                <XAxis type="number" stroke="#94a3b8" fontSize={11} />
+                <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={11} width={120} tickLine={false} />
+                <RechartsTooltip content={<CustomTooltip />} />
+                <Bar dataKey="contribution" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={12} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Chart 4: Incident Priority Distribution */}
+        <div className="bg-navy-800 border border-navy-700 rounded-xl p-5">
+          <h3 className="text-white font-semibold text-sm mb-6 uppercase tracking-wider">4. Incident Priority Distribution</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartsData.priorityDistribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: '#334155', opacity: 0.4 }} />
+                <Bar dataKey="count" fill="#eab308" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Chart 5: Risk Score vs Active Incident Count (Correlation) */}
+        <div className="bg-navy-800 border border-navy-700 rounded-xl p-5 lg:col-span-2">
+          <h3 className="text-white font-semibold text-sm mb-6 uppercase tracking-wider">5. Risk Score vs Incident Count Correlation</h3>
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: -20 }}>
+                <CartesianGrid stroke="#334155" />
+                <XAxis type="number" dataKey="x" name="Risk Score" stroke="#94a3b8" fontSize={11}>
+                  <Label value="Risk Score" offset={-10} position="insideBottom" fill="#94a3b8" fontSize={11} />
+                </XAxis>
+                <YAxis type="number" dataKey="y" name="Incident Count" stroke="#94a3b8" fontSize={11}>
+                  <Label value="Incident Count" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} fill="#94a3b8" fontSize={11} />
+                </YAxis>
+                <ZAxis type="number" dataKey="z" range={[60, 400]} />
+                <RechartsTooltip 
+                  cursor={{ strokeDasharray: '3 3' }} 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const item = payload[0].payload;
+                      return (
+                        <div className="bg-navy-950 border border-navy-700 p-3 rounded-lg shadow-lg">
+                          <p className="text-white font-semibold text-sm mb-1">{item.name}</p>
+                          <p className="text-red-400 text-xs">Risk Score: {item.x.toFixed(1)}</p>
+                          <p className="text-blue-400 text-xs">Incidents: {item.y}</p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Scatter name="Hotspots" data={chartsData.riskVsIncident} fill="#f43f5e" />
+              </ScatterChart>
             </ResponsiveContainer>
           </div>
         </div>

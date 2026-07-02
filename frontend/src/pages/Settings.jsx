@@ -58,7 +58,7 @@ const Settings = () => {
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">Environment</label>
-              <p className="text-slate-200 font-medium bg-navy-900 border border-navy-700 rounded-lg px-4 py-2.5">Development (Phase 1)</p>
+              <p className="text-slate-200 font-medium bg-navy-900 border border-navy-700 rounded-lg px-4 py-2.5">Development ({import.meta.env.VITE_APP_PHASE || 'Phase 2'})</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">Backend Status</label>
