@@ -6,9 +6,11 @@ import ErrorState from '../components/common/ErrorState';
 import StatusBadge from '../components/common/StatusBadge';
 import PriorityBadge from '../components/common/PriorityBadge';
 import Modal from '../components/common/Modal';
-import { riskAPI } from '../services/api';
+import AllocationPlanModal from '../components/common/AllocationPlanModal';
+import DispatchDetailsDrawer from '../components/common/DispatchDetailsDrawer';
+import { riskAPI, dispatchAPI } from '../services/api';
 import { formatDate } from '../utils/formatters';
-import { Search, Filter, X, Zap, Brain, Shield, Info, AlertTriangle } from 'lucide-react';
+import { Search, Filter, X, Zap, Brain, Shield, Info, AlertTriangle, Play, Eye } from 'lucide-react';
 
 const Incidents = () => {
   const [incidents, setIncidents] = useState([]);
@@ -20,6 +22,13 @@ const Incidents = () => {
   const [incidentDetails, setIncidentDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState(null);
+
+  // Allocation plan modal trigger
+  const [allocationIncidentId, setAllocationIncidentId] = useState(null);
+  // Active dispatch details if any exists for the selected incident
+  const [activeDispatch, setActiveDispatch] = useState(null);
+  // Dispatch details drawer trigger
+  const [selectedDispatchId, setSelectedDispatchId] = useState(null);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -49,21 +58,29 @@ const Incidents = () => {
     fetchIncidents();
   }, [fetchIncidents]);
 
-  // Fetch individual priority incident details
+  // Fetch individual priority incident details and check for active dispatch
   useEffect(() => {
     if (!selectedIncidentId) {
       setIncidentDetails(null);
+      setActiveDispatch(null);
       return;
     }
 
     const fetchIncidentDetails = async () => {
       setDetailsLoading(true);
       setDetailsError(null);
+      setActiveDispatch(null);
       try {
-        const res = await riskAPI.getIncidentById(selectedIncidentId);
-        setIncidentDetails(res.data);
+        const [incRes, dispRes] = await Promise.all([
+          riskAPI.getIncidentById(selectedIncidentId),
+          dispatchAPI.getAll({ incident_id: selectedIncidentId, active_only: true })
+        ]);
+        setIncidentDetails(incRes.data);
+        if (dispRes.data && dispRes.data.length > 0) {
+          setActiveDispatch(dispRes.data[0]);
+        }
       } catch (err) {
-        setDetailsError(err.message || 'Failed to load incident priority details');
+        setDetailsError(err.message || 'Failed to load incident details');
       } finally {
         setDetailsLoading(false);
       }
@@ -217,10 +234,24 @@ const Incidents = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 self-start md:self-center flex-shrink-0">
+                    <div className="flex items-center gap-4 self-start md:self-center flex-shrink-0">
+                      {inc.status !== 'Resolved' && inc.status !== 'Closed' && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAllocationIncidentId(inc.incident_id);
+                          }}
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold border border-blue-500 flex items-center gap-1 transition-colors shadow-sm"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-current" />
+                          Generate Plan
+                        </button>
+                      )}
+
                       <div className="flex flex-col items-end gap-1">
                         <span className="text-[10px] text-slate-500 font-semibold uppercase">Priority Score</span>
-                        <span className="text-sm font-bold text-white bg-navy-900 border border-navy-700 px-2 py-0.5 rounded">
+                        <span className="text-sm font-bold text-white bg-navy-900 border border-navy-700 px-2 py-0.5 rounded font-mono">
                           {inc.priority_score.toFixed(1)}
                         </span>
                       </div>
@@ -339,6 +370,51 @@ const Incidents = () => {
               </div>
             </div>
 
+            {/* Active Dispatch Info (Phase 3) */}
+            {activeDispatch ? (
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-5 space-y-4">
+                <h4 className="text-blue-400 font-semibold text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" /> Active simulated dispatch exists
+                </h4>
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <span className="text-slate-500 font-medium">Dispatch Code</span>
+                    <p className="text-slate-300 font-mono font-bold mt-0.5">{activeDispatch.dispatch_code}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 font-medium">Dispatch Status</span>
+                    <p className="text-slate-300 font-bold mt-0.5">{activeDispatch.status}</p>
+                  </div>
+                  {activeDispatch.estimated_arrival_minutes && (
+                    <div>
+                      <span className="text-slate-500 font-medium">Estimated ETA</span>
+                      <p className="text-slate-300 font-mono font-bold mt-0.5">{activeDispatch.estimated_arrival_minutes.toFixed(1)} min</p>
+                    </div>
+                  )}
+                  {activeDispatch.selected_hospital_id && (
+                    <div>
+                      <span className="text-slate-500 font-medium">Selected Hospital</span>
+                      <p className="text-slate-300 font-bold mt-0.5">Hospital #{activeDispatch.selected_hospital_id}</p>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="pt-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDispatchId(activeDispatch.id);
+                      setSelectedIncidentId(null); // close incident modal
+                    }}
+                    className="w-full flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold border border-blue-500 transition-colors"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    Open Dispatch Details
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
             {/* Phase 1 core details preservation */}
             <div className="bg-navy-900/40 border border-navy-700/50 rounded-xl p-5">
               <h4 className="text-slate-400 font-semibold text-xs uppercase tracking-wider mb-3 flex items-center gap-1.5">
@@ -356,17 +432,52 @@ const Incidents = () => {
               </div>
             </div>
 
-            <div className="flex justify-end pt-4 border-t border-navy-700/50">
+            <div className="flex justify-end gap-3 pt-4 border-t border-navy-700/50">
               <button 
                 onClick={() => setSelectedIncidentId(null)}
-                className="px-4 py-2 bg-navy-700 hover:bg-navy-600 rounded-lg text-sm font-medium text-white transition-colors border border-navy-600"
+                className="px-4 py-2 bg-navy-700 hover:bg-navy-600 rounded-lg text-xs font-semibold text-slate-300 transition-colors border border-navy-600"
               >
                 Close Details
               </button>
+              
+              {!activeDispatch && incidentDetails.status !== 'Resolved' && incidentDetails.status !== 'Closed' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAllocationIncidentId(incidentDetails.incident_id);
+                    setSelectedIncidentId(null);
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-xs font-bold text-white transition-colors border border-blue-500 flex items-center gap-1.5 shadow-sm"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  Generate Response Plan
+                </button>
+              )}
             </div>
           </div>
         ) : null}
       </Modal>
+
+      {/* Phase 3 Allocation Plan Modal */}
+      <AllocationPlanModal
+        isOpen={!!allocationIncidentId}
+        onClose={() => setAllocationIncidentId(null)}
+        incidentId={allocationIncidentId}
+        onDispatchSuccess={() => {
+          setAllocationIncidentId(null);
+          fetchIncidents();
+        }}
+      />
+
+      {/* Phase 3 Dispatch Details Drawer */}
+      <DispatchDetailsDrawer
+        isOpen={!!selectedDispatchId}
+        onClose={() => setSelectedDispatchId(null)}
+        dispatchId={selectedDispatchId}
+        onTransitionSuccess={() => {
+          fetchIncidents();
+        }}
+      />
     </PageContainer>
   );
 };

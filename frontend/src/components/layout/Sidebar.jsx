@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, AlertTriangle, Activity, Users, BarChart3, Settings } from 'lucide-react';
+import { LayoutDashboard, AlertTriangle, Activity, Send, Users, BarChart3, Settings } from 'lucide-react';
 
 const Sidebar = () => {
   const navItems = [
     { name: 'Overview', path: '/', icon: LayoutDashboard },
     { name: 'Risk Zones', path: '/risk-zones', icon: AlertTriangle },
     { name: 'Incidents', path: '/incidents', icon: Activity },
+    { name: 'Dispatches', path: '/dispatches', icon: Send },
     { name: 'Resources', path: '/resources', icon: Users },
     { name: 'Analytics', path: '/analytics', icon: BarChart3 },
     { name: 'Settings', path: '/settings', icon: Settings },

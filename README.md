@@ -1,14 +1,14 @@
 # CityMind
 
-CityMind is a smart-city control-room dashboard with a React frontend, FastAPI backend, SQLAlchemy, Pydantic, and SQLite.
+CityMind is a decision-intelligence platform for city control rooms. It aggregates traffic, weather, incident, complaint, hospital, and emergency-resource data into explainable operational views.
 
 ## Implemented Scope
 
-- Phase 1: dashboard foundation, Mysuru seed data, map and operational entity APIs.
-- Phase 2: deterministic, explainable area risk and incident-priority intelligence.
-- Phase 3: deterministic resource planning and persisted simulated dispatch lifecycle.
+- **Phase 1**: Dashboard foundation, Mysuru seed data, Leaflet map, and operational entity APIs.
+- **Phase 2**: Deterministic, explainable area risk and incident-priority intelligence.
+- **Phase 3**: Resource allocation planning, ranked candidate selection, hospital bed reservations, persisted simulated dispatch lifecycles, and demo resets.
 
-Phase 3 remains a simulation and does not include AI/ML, Gemini, agents, autonomous real-world dispatch, route optimization, computer vision, live CCTV, WebSockets, cloud deployment, or authentication.
+Phase 3 remains a simulation and does not include AI/ML, Gemini, autonomous real-world dispatch, road-network route optimization, computer vision, live CCTV feeds, WebSockets, cloud deployment, or authentication.
 
 ## Setup
 
@@ -33,8 +33,8 @@ cd backend
 uvicorn app.main:app --reload --port 8000
 ```
 
-API: `http://localhost:8000/api`
-OpenAPI docs: `http://localhost:8000/docs`
+API base path: `http://localhost:8000/api`  
+OpenAPI documentation: `http://localhost:8000/docs`  
 
 Frontend:
 
@@ -44,37 +44,44 @@ npm install
 npm run dev
 ```
 
-Frontend: `http://localhost:5173` (Vite may select the next free port).
+Frontend UI path: `http://localhost:5173` (Vite may select the next free port).
 
-## Deterministic Risk Formula
+## Phase 3 Features & Workflows
 
-```text
-traffic 25% + rainfall 20% + active incidents 20% + complaints 15%
-+ hospital load 10% + emergency resource shortage 10%
-```
+### 1. Incident Response Planner
+From the **Incidents** list, active incidents feature a **Generate Response Plan** action. Clicking this fetches the allocation plan, detailing:
+- Required resource counts vs available candidates.
+- Suitability scoring for eligible candidates (readiness, ETA, capacities).
+- Ranked hospital options with bed availability (for medical emergencies).
+- Unresolved shortages warning banners.
 
-Inputs and output are clamped to 0–100 and the result is rounded to two decimals. Risk levels are Low (0–30), Moderate (>30–60), High (>60–80), and Critical (>80–100). Full normalization and incident-priority rules are documented in `CITYMIND_SPEC.md`.
+### 2. Confirmed simulated dispatches
+Dispatchers can review allocations, customize candidates/hospitals, add optional notes, and execute the dispatch plan. Active dispatches:
+- Progress resources to "Dispatched" status.
+- Update target incidents to "Assigned" status.
+- Dynamically reserve beds at target hospitals.
 
-## Phase 2 API
+### 3. Management & Lifecycle
+The new **Dispatches** sidebar tab provides:
+- Statistics on active dispatches, assigned resources, average ETA, and shortages.
+- Searchable and filterable dispatch lists.
+- Full details slide-out drawer with assignments list and status progression controls (Planned -> Dispatched -> En Route -> On Scene -> Transporting -> Completed / Cancelled).
+- Confirmations for terminal actions (Complete / Cancel) that correctly release resources and update final incident resolutions.
 
-- `GET /api/risk/areas?risk_level=&min_score=&search=&sort_order=`
-- `GET /api/risk/areas/{area_id}`
-- `GET /api/risk/incidents?priority_level=&status=&area_id=`
-- `GET /api/risk/incidents/{incident_id}`
-- `GET /api/risk/summary`
-
-Scores are computed dynamically from existing rows; Phase 1 `operational_score` and `status` values are not overwritten.
+### 4. Settings & Demo Reset
+A developer-only restoration control panel is exposed in settings for Vite dev mode, allowing officers to trigger a `/api/demo/reset` rollback of all simulated records.
 
 ## Tests
 
+Run from `backend`:
+
 ```powershell
-cd backend
 .venv\Scripts\python.exe -m pytest -v
 ```
 
-The suite covers both the original Phase 1 APIs and Phase 2 algorithms/endpoints.
+All 54 tests pass covering the health endpoints, risk calculations, prioritization, Haversine ETAs, suitability weights, atomic creation rollbacks, lifecycle status progression, bed reservations, and demo reset protections.
 
-## Environment
+## Environment Config
 
 Backend `.env` example:
 
@@ -89,28 +96,3 @@ Frontend `.env` example:
 ```text
 VITE_API_BASE_URL=http://localhost:8000/api
 ```
-
-## Known Limitations
-
-Data is seeded rather than live; proximity uses a 5 km straight-line radius; calculations are uncached at request time; hospital absence falls back to neutral load; and missing local resource types count as fully short.
-## Phase 3 Allocation and Simulated Dispatch
-
-Central rules map incident categories to Ambulance, Police Vehicle, Fire Engine, and Municipal Unit requirements. The planner filters unavailable, assigned, maintenance/offline, capacity-incompatible, and invalid-coordinate resources. Eligible units are ranked with ETA 40%, readiness 20%, type match 20%, capacity 10%, and area conditions 10%.
-
-ETA uses Haversine straight-line distance, fixed resource speeds, and deterministic traffic/rainfall/severity delays with a two-minute minimum. Medical emergencies and road accidents also receive ranked hospital options based on ETA, beds, emergency capacity, status, and load.
-
-Dispatches are SQLite-persisted simulations. Creation atomically assigns resources and optionally reserves hospital beds. Valid lifecycle transitions prevent double assignment and unsafe completion/cancellation. `Base.metadata.create_all()` creates the two new tables without deleting existing data.
-
-### Phase 3 API
-
-- `GET /api/allocation/incidents/{incident_id}/plan`
-- `POST /api/dispatches`
-- `GET /api/dispatches?status=&incident_id=&resource_id=&active_only=`
-- `GET /api/dispatches/summary`
-- `GET /api/dispatches/{dispatch_id}`
-- `PATCH /api/dispatches/{dispatch_id}/status`
-- `POST /api/dispatches/{dispatch_id}/cancel`
-- `POST /api/dispatches/{dispatch_id}/complete`
-- `POST /api/demo/reset` (development/demo/test only)
-
-The reset endpoint removes Phase 3 dispatch records and restores dispatch-linked resources, incidents, and reserved hospital beds to their pre-dispatch demo values.

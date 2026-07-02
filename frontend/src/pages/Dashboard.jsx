@@ -8,10 +8,11 @@ import SystemStatus from '../components/dashboard/SystemStatus';
 import LoadingState from '../components/common/LoadingState';
 import ErrorState from '../components/common/ErrorState';
 import RiskLevelBadge from '../components/common/RiskLevelBadge';
+import DispatchDetailsDrawer from '../components/common/DispatchDetailsDrawer';
 import { useDashboardData } from '../hooks/useDashboardData';
-import { riskAPI, areasAPI } from '../services/api';
+import { riskAPI, areasAPI, dispatchAPI } from '../services/api';
 import { formatDate } from '../utils/formatters';
-import { AlertCircle, Map, Siren, Shield, Truck, Clock, ShieldAlert, Brain, Zap } from 'lucide-react';
+import { AlertCircle, Map, Siren, Shield, Truck, Clock, ShieldAlert, Brain, Zap, Send, Eye, Users, CheckCircle2 } from 'lucide-react';
 
 const Dashboard = () => {
   const { data: p1Data, loading: p1Loading, error: p1Error, refetch: p1Refetch } = useDashboardData();
@@ -22,32 +23,48 @@ const Dashboard = () => {
   const [riskLoading, setRiskLoading] = useState(true);
   const [riskError, setRiskError] = useState(null);
 
-  const fetchRiskData = async () => {
+  const [dispatchSummary, setDispatchSummary] = useState(null);
+  const [activeDispatches, setActiveDispatches] = useState([]);
+  const [dispatchLoading, setDispatchLoading] = useState(true);
+  const [dispatchError, setDispatchError] = useState(null);
+
+  // Selected dispatch for details drawer
+  const [selectedDispatchId, setSelectedDispatchId] = useState(null);
+
+  const fetchDashboardData = async () => {
     setRiskLoading(true);
     setRiskError(null);
+    setDispatchLoading(true);
+    setDispatchError(null);
     try {
-      const [sumRes, areasRes, coordsRes] = await Promise.all([
+      const [sumRes, areasRes, coordsRes, dispSumRes, dispRes] = await Promise.all([
         riskAPI.getSummary(),
         riskAPI.getAreas(),
-        areasAPI.getAll()
+        areasAPI.getAll(),
+        dispatchAPI.getSummary(),
+        dispatchAPI.getAll({ active_only: true })
       ]);
       setRiskSummary(sumRes.data);
       setRiskAreas(areasRes.data);
       setAreasList(coordsRes.data);
+      setDispatchSummary(dispSumRes.data);
+      setActiveDispatches(dispRes.data.slice(0, 5));
     } catch (err) {
       setRiskError(err.message || 'Failed to load risk summary');
+      setDispatchError(err.message || 'Failed to load dispatch summary');
     } finally {
       setRiskLoading(false);
+      setDispatchLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRiskData();
+    fetchDashboardData();
   }, []);
 
   const handleRetryAll = () => {
     p1Refetch();
-    fetchRiskData();
+    fetchDashboardData();
   };
 
   const combinedMapMarkers = useMemo(() => {
@@ -245,6 +262,124 @@ const Dashboard = () => {
         )}
       </div>
 
+      {/* Phase 3 Dispatch Intelligence Section */}
+      <div className="bg-navy-800 border border-navy-700 rounded-xl p-6 mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-navy-700/60 pb-4 mb-6">
+          <div>
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Send className="w-5 h-5 text-blue-400" />
+              Dispatch & Resource Allocation (Phase 3)
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">Real-time simulated dispatch lifecycle and candidate recommendations</p>
+          </div>
+        </div>
+
+        {dispatchLoading ? (
+          <div className="py-6"><LoadingState message="Fetching dispatch metrics..." /></div>
+        ) : dispatchError ? (
+          <div className="bg-red-500/10 border border-red-500/20 p-5 rounded-lg text-center text-slate-400 text-sm">
+            Simulated dispatch engine metrics unavailable.
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Dispatch Stats Grid */}
+            {dispatchSummary && (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-navy-900/50 border border-navy-700/50 rounded-xl p-4">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Active Dispatches</span>
+                  <span className="text-2xl font-extrabold text-white mt-1.5 block">{dispatchSummary.active_dispatch_count}</span>
+                </div>
+                <div className="bg-navy-900/50 border border-navy-700/50 rounded-xl p-4">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Currently Assigned</span>
+                  <span className="text-2xl font-extrabold text-orange-400 mt-1.5 block">{dispatchSummary.resources_currently_assigned}</span>
+                </div>
+                <div className="bg-navy-900/50 border border-navy-700/50 rounded-xl p-4">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Average ETA</span>
+                  <span className="text-2xl font-extrabold text-yellow-400 mt-1.5 block">{dispatchSummary.average_eta.toFixed(1)} min</span>
+                </div>
+                <div className="bg-navy-900/50 border border-navy-700/50 rounded-xl p-4">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Incomplete Plans</span>
+                  <span className="text-2xl font-extrabold text-red-400 mt-1.5 block">{dispatchSummary.incomplete_response_plan_count}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Shortages & Active List Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* Latest Active Dispatches (List) */}
+              <div className="lg:col-span-2 space-y-3">
+                <span className="text-xs text-slate-400 uppercase font-bold tracking-wider block">Latest Active Dispatches</span>
+                {activeDispatches.length === 0 ? (
+                  <div className="bg-navy-900/30 border border-navy-700/40 rounded-xl p-6 text-center text-xs text-slate-500 font-semibold">
+                    No active dispatches. Use the Incidents page to initiate one.
+                  </div>
+                ) : (
+                  <div className="bg-navy-900/30 border border-navy-700/50 rounded-xl overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs whitespace-nowrap">
+                        <thead className="bg-navy-950/40 text-slate-500 uppercase font-semibold">
+                          <tr>
+                            <th className="px-4 py-2.5">Code</th>
+                            <th className="px-4 py-2.5">Status</th>
+                            <th className="px-4 py-2.5">ETA</th>
+                            <th className="px-4 py-2.5 text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-navy-800/40">
+                          {activeDispatches.map(disp => (
+                            <tr key={disp.id} className="hover:bg-navy-750/20">
+                              <td className="px-4 py-3 font-semibold text-white font-mono">{disp.dispatch_code}</td>
+                              <td className="px-4 py-3 text-slate-300">{disp.status}</td>
+                              <td className="px-4 py-3 text-slate-300 font-mono">
+                                {disp.estimated_arrival_minutes ? `${disp.estimated_arrival_minutes.toFixed(1)} min` : '—'}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedDispatchId(disp.id)}
+                                  className="p-1 bg-navy-800 hover:bg-navy-700 border border-navy-700 rounded text-slate-300 hover:text-white"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Resource Shortages Column */}
+              <div className="space-y-3">
+                <span className="text-xs text-slate-400 uppercase font-bold tracking-wider block">Current Shortages</span>
+                {dispatchSummary && Object.keys(dispatchSummary.resource_shortages_by_type).length === 0 ? (
+                  <div className="bg-navy-900/30 border border-navy-700/40 rounded-xl p-6 text-center text-xs text-emerald-400 border-emerald-500/10 font-bold flex items-center justify-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Resource levels optimal
+                  </div>
+                ) : (
+                  <div className="bg-red-500/5 border border-red-500/10 rounded-xl p-4 space-y-2">
+                    <span className="text-[10px] text-red-400 uppercase font-bold block mb-1">Active Shortages</span>
+                    {dispatchSummary && Object.entries(dispatchSummary.resource_shortages_by_type).map(([type, count]) => (
+                      <div key={type} className="flex justify-between items-center text-xs border-b border-red-500/10 pb-1.5 last:border-0 last:pb-0">
+                        <span className="text-slate-300 font-semibold">{type}</span>
+                        <span className="bg-red-950/80 text-red-400 border border-red-500/25 px-2 py-0.5 rounded font-mono font-bold">
+                          -{count} units
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Map, Feeds, and Lists */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <div className="lg:col-span-2 space-y-6">
@@ -317,6 +452,14 @@ const Dashboard = () => {
           <SystemStatus statuses={summary.feed_statuses} />
         </div>
       </div>
+
+      {/* Dispatch details drawer for latest dispatches click */}
+      <DispatchDetailsDrawer
+        isOpen={!!selectedDispatchId}
+        onClose={() => setSelectedDispatchId(null)}
+        dispatchId={selectedDispatchId}
+        onTransitionSuccess={fetchDashboardData}
+      />
     </PageContainer>
   );
 };

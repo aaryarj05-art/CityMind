@@ -39,18 +39,106 @@ const Topbar = ({ title }) => {
     return () => document.removeEventListener('keydown', handleEscape);
   }, [showNotifications]);
 
-  // Derive notifications from Phase 2 risk data + Phase 1 operational data
+  // Derive notifications from Phase 2 risk data + Phase 3 dispatch data + Phase 1 operational data
   const fetchNotifications = useCallback(async () => {
     try {
-      const [riskAreasRes, riskIncidentsRes, riskSummaryRes, dashRes] = await Promise.allSettled([
+      const [riskAreasRes, riskIncidentsRes, riskSummaryRes, dispRes, dashRes] = await Promise.allSettled([
         riskAPI.getAreas(),
         riskAPI.getIncidents(),
         riskAPI.getSummary(),
+        dispatchAPI.getAll(),
         dashboardAPI.getDashboardData()
       ]);
 
       const derived = [];
       let notifId = 1;
+
+      // Phase 3 Dispatch Notifications (new dispatches, status changes, shortages, cancellations, completions)
+      if (dispRes.status === 'fulfilled') {
+        const dispatches = dispRes.value.data;
+        dispatches.forEach(disp => {
+          const createdAge = Date.now() - new Date(disp.created_at).getTime();
+          const updatedAge = Date.now() - new Date(disp.updated_at).getTime();
+
+          // New dispatch created alert (if created in last 1 hour)
+          if (createdAge < 3600000) {
+            derived.push({
+              id: notifId++,
+              title: 'New Dispatch Created',
+              description: `Simulated dispatch ${disp.dispatch_code} has been initiated for Incident #${disp.incident_id}.`,
+              severity: 'high',
+              area: `Incident #${disp.incident_id}`,
+              timestamp: disp.created_at,
+              icon: 'resource',
+            });
+          }
+
+          // Dispatch Cancelled (if updated in last 1 hour)
+          if (disp.status === 'Cancelled' && updatedAge < 3600000) {
+            derived.push({
+              id: notifId++,
+              title: 'Dispatch Cancelled',
+              description: `Simulated dispatch ${disp.dispatch_code} was cancelled. Responders released.`,
+              severity: 'critical',
+              area: `Incident #${disp.incident_id}`,
+              timestamp: disp.updated_at,
+              icon: 'feed',
+            });
+          }
+
+          // Dispatch Completed (if updated in last 1 hour)
+          if (disp.status === 'Completed' && updatedAge < 3600000) {
+            derived.push({
+              id: notifId++,
+              title: 'Dispatch Completed',
+              description: `Simulated dispatch ${disp.dispatch_code} was completed. Target incident resolved.`,
+              severity: 'high',
+              area: `Incident #${disp.incident_id}`,
+              timestamp: disp.updated_at,
+              icon: 'zone',
+            });
+          }
+
+          // Dispatch Status Changed (if updated in last 1 hour, not Terminal)
+          if (!['Planned', 'Completed', 'Cancelled'].includes(disp.status) && updatedAge < 3600000) {
+            derived.push({
+              id: notifId++,
+              title: 'Dispatch Status Changed',
+              description: `Simulated dispatch ${disp.dispatch_code} is now ${disp.status}.`,
+              severity: 'high',
+              area: `Incident #${disp.incident_id}`,
+              timestamp: disp.updated_at,
+              icon: 'incident',
+            });
+          }
+
+          // Shortages alert in active dispatch
+          if (!['Completed', 'Cancelled'].includes(disp.status) && disp.shortages && Object.keys(disp.shortages).length > 0) {
+            derived.push({
+              id: notifId++,
+              title: 'Dispatch Shortage Alert',
+              description: `Simulated dispatch ${disp.dispatch_code} has active unfilled resource shortages.`,
+              severity: 'critical',
+              area: `Incident #${disp.incident_id}`,
+              timestamp: disp.updated_at,
+              icon: 'resource',
+            });
+          }
+
+          // Incomplete response plan in active dispatch
+          if (!['Completed', 'Cancelled'].includes(disp.status) && !disp.plan_complete) {
+            derived.push({
+              id: notifId++,
+              title: 'Incomplete Response Plan',
+              description: `Simulated dispatch ${disp.dispatch_code} plan is currently incomplete.`,
+              severity: 'high',
+              area: `Incident #${disp.incident_id}`,
+              timestamp: disp.updated_at,
+              icon: 'zone',
+            });
+          }
+        });
+      }
 
       // Phase 2 risk zone alerts — Critical and High risk areas
       if (riskAreasRes.status === 'fulfilled') {

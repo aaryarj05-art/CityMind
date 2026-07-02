@@ -43,4 +43,22 @@ export const riskAPI = {
   getIncidentById: (id) => api.get(`/risk/incidents/${id}`),
 };
 
+export const allocationAPI = {
+  getPlan: (incidentId) => api.get(`/allocation/incidents/${incidentId}/plan`),
+};
+
+export const dispatchAPI = {
+  create: (payload) => api.post('/dispatches', payload),
+  getAll: (params) => api.get('/dispatches', { params }),
+  getSummary: () => api.get('/dispatches/summary'),
+  getById: (id) => api.get(`/dispatches/${id}`),
+  updateStatus: (id, status) => api.patch(`/dispatches/${id}/status`, { status }),
+  cancel: (id) => api.post(`/dispatches/${id}/cancel`),
+  complete: (id) => api.post(`/dispatches/${id}/complete`),
+};
+
+export const demoAPI = {
+  reset: () => api.post('/demo/reset'),
+};
+
 export default api;

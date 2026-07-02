@@ -1,6 +1,6 @@
 # Current Status
 
-**Current Phase:** Phase 3 - Resource Allocation and Simulated Dispatch Intelligence (backend complete and verified)
+**Current Phase:** Phase 3 — Resource Allocation and Simulated Dispatch (backend + frontend integration complete, build verified, all tests passing)
 
 ## Completed
 
@@ -11,37 +11,40 @@
 - React command-center with Overview dashboard, Incidents table, Risk Zones list, Analytics charts, Resources table, Settings page.
 - All 11 original Phase 1 backend tests remain passing.
 
-### Phase 2 Backend
+### Phase 2 (preserved)
 
-- Central validated risk and incident-priority weights.
-- Transparent normalization and 0–100 clamping.
-- Dynamic area risk scoring with Low, Moderate, High, and Critical classification.
-- Bounded multi-incident severity aggregation.
-- Geographic 5 km hospital/resource proximity calculations.
-- Structured factor scores, contributions, deterministic top factors, explanations, priorities, and UTC timestamps.
-- Deterministic incident priority scoring with Routine, Elevated, Urgent, and Immediate classification.
-- Pydantic response contracts and HTTP 404/422 handling.
-- No persisted risk tables and no changes to Phase 1 operational scores.
+- Dynamic area risk scoring and incident priority calculations.
+- Recharts visualizations and explainable breakdown charts.
+- Dark native select dropdown menus Legibility fixes in Chrome/Windows.
+- Compact map legend color category overlay.
 
-### Phase 2 Frontend
+### Phase 3 Frontend Integration
 
-- **Dashboard**: City Risk Intelligence panel with city-wide average score, risk distribution bar, and top 5 highest-risk areas. Priority Risk Zones table now driven by Phase 2 `/api/risk/areas` data (Phase 1 operational scores removed). CityMap displays dynamic Leaflet markers colored by risk level with compact color legend.
-- **Risk Zones**: Full risk-scored area table with search, risk level filter, minimum score filter, and sort toggle. Details modal shows factor contribution Recharts bar chart and calculation explanation panel.
-- **Incidents**: Priority-ranked incident list with priority scores and levels. Details modal shows Phase 1 core data plus Phase 2 prioritization breakdown.
-- **Analytics**: Five dynamic Recharts visualizations. Hotspot Zones card replaced with explicit "Critical & High-Risk Zones" metrics.
-- **Notifications**: Bell dropdown now derives alerts from Phase 2 `/api/risk/areas`, `/api/risk/incidents`, and `/api/risk/summary`. Zone alerts reference Phase 2 risk scores (consistent with Risk Zones page).
-- **Settings**: Phase label reads "Development (Phase 2)" by default, configurable via `VITE_APP_PHASE` env var.
-- **Select dropdowns**: All native `<select>` elements styled with dark backgrounds and readable text in Chrome on Windows.
-- **Map Legend**: Compact overlay explaining Critical (red), High (orange), Moderate (yellow), Low (green), Hospital (violet), and Incident markers.
-- **Reusable Components**: RiskScoreBadge, RiskLevelBadge, PriorityBadge, FactorContributionChart, RiskExplanationPanel.
+- **Incident Allocation Planner**: "Generate Response Plan" button next to all active incidents. Large modal displaying severity, required resources, shortages warning, plan completeness, and deterministic rationale.
+- **Ranked Resource Recommendations**: Interactive cards rendering resource code, type, suitability score, distance, base travel time, final ETA, and deterministic selection reasons. Selectable custom resource overrides.
+- **Plan Completeness & Shortages**: PlanCompletenessBadge and ShortageWarning cards indicating Complete/Partial/Incomplete status. Explicit warning banners for active shortages.
+- **Hospital Recommendations**: Matches medical emergencies and road accidents to ranked hospitals with suitability score, transport ETA, available beds, capacity, load, and reservation selection.
+- **Simulated Dispatch Workflow**: Double-assignment validation, optional notes, explicit confirmation for partial plans, and creation response display. Disable submit while dispatching.
+- **Dispatch Management Page**: Added "Dispatches" sidebar route next to Incidents/Resources. Summarizes dispatches (active dispatches, assigned resources, average ETA, incomplete plans, shortages). Searchable and filterable dispatch list (lifecycle status, target incident, resource ID, active only).
+- **Dispatch Details Drawer**: Slide-out panel displaying dispatch code, status timeline, incident summary, assignments list, selected hospital, officer notes, and timestamps.
+- **Lifecycle Controls**: Action bar with valid transition buttons (Planned, Dispatched, En Route, On Scene, Transporting, Completed, Cancelled). Require explicit confirmation modals for Cancel and Complete.
+- **Resources Page Integration**: Active dispatch code, assigned role, and last status change merged directly into list rows and details modals. Link to open dispatch drawer.
+- **Incident Page Integration**: Displays active dispatch banner, dispatch status, assigned resources, hospital, and open drawer button inside Incident Prioritization Details modal.
+- **Dashboard Overview Integration**: Added "Dispatch & Resource Allocation (Phase 3)" panel displaying active dispatches, assigned resources, average ETA, incomplete plans, latest dispatches table, and active shortages column.
+- **Notifications Integration**: Populates notification dropdown with Phase 3 dispatch events (new dispatches, completions, cancellations, shortages, incomplete plans) dynamically calculated from API.
+- **Demo Reset Control**: Development-only panel in Settings to trigger `/api/demo/reset`. Confirms destructive reset of dispatches, hospital beds, and resource statuses to baseline.
 
-## Phase 2 Endpoints
+## Phase 3 Endpoints Consumed
 
-- `GET /api/risk/areas` — all areas with deterministic risk scores, filters, and sorting
-- `GET /api/risk/areas/{area_id}` — single area with full factor breakdown
-- `GET /api/risk/incidents` — all incidents with priority scores, filters, and sorting
-- `GET /api/risk/incidents/{incident_id}` — single incident with priority breakdown
-- `GET /api/risk/summary` — city-wide risk summary statistics
+- `GET /api/allocation/incidents/{incident_id}/plan` — returns eligibility and suitability recommendations
+- `POST /api/dispatches` — creates a new atomic dispatch configuration
+- `GET /api/dispatches` — returns list of dispatches with filters
+- `GET /api/dispatches/summary` — returns aggregated dispatch counters
+- `GET /api/dispatches/{dispatch_id}` — returns dispatch details and assignments
+- `PATCH /api/dispatches/{dispatch_id}/status` — changes dispatch status
+- `POST /api/dispatches/{dispatch_id}/cancel` — cancels dispatch and releases resources/beds
+- `POST /api/dispatches/{dispatch_id}/complete` — completes dispatch and releases resources/resolves incident
+- `POST /api/demo/reset` — restores backend initial simulated baseline
 
 ## Verification
 
@@ -53,7 +56,7 @@ Run from `backend`:
 .venv\Scripts\python.exe -m pytest -v
 ```
 
-54 tests pass: all 40 Phase 1/2 tests + 14 Phase 3 tests.
+**Result:** 54 passed (11 Phase 1, 29 Phase 2, 14 Phase 3 tests).
 
 ### Frontend Build
 
@@ -63,19 +66,7 @@ Run from `frontend`:
 npm run build
 ```
 
-Builds successfully with no errors (2464 modules, 910ms).
-
-### UI Consistency Verification
-
-| Item | Status |
-|------|--------|
-| Select dropdowns (Risk Zones, Incidents, Resources) | ✅ Dark background, readable text |
-| Overview Priority Risk Zones table | ✅ Phase 2 API data, no operational scores |
-| Notification alerts | ✅ Phase 2 risk scores, consistent with Risk Zones |
-| Settings phase label | ✅ "Development (Phase 2)" |
-| Analytics hotspot label | ✅ Explicit "Critical & High-Risk Zones" |
-| Map legend | ✅ Compact overlay with all marker categories |
-| Cross-page score consistency | ✅ Same `/api/risk/areas` data across Overview, Risk Zones, Analytics, Notifications |
+**Result:** Builds successfully with no errors (2476 modules transformed, 785ms).
 
 ## Run Commands
 
@@ -96,26 +87,4 @@ npm run dev
 
 ## Known Limitations
 
-Phase 2 uses seeded request-time data and a straight-line 5 km proximity radius. It does not include live feeds, caching, dispatch, route optimization, authentication, WebSockets, cloud deployment, ML, computer vision, Gemini, or agents.
-## Phase 3 Backend
-
-- Central incident-to-resource requirements, capacity rules, speeds, scoring weights, and lifecycle transitions.
-- Haversine distance and deterministic traffic/rainfall/severity-adjusted ETA.
-- Explainable resource eligibility, ranking, partial plans, and explicit shortages.
-- Medical/road-accident hospital ranking and transactional bed reservation.
-- Persisted `Dispatch` and `DispatchAssignment` tables created safely through existing `create_all` initialization.
-- Atomic simulated dispatch creation, double-assignment prevention, duplicate-active-dispatch prevention, cancellation, progression, completion, filtering, summary, and environment-protected demo reset.
-- Existing Phase 1 and Phase 2 behavior remains passing and Phase 2 risk scoring is unchanged.
-
-### Phase 3 verification
-
-```powershell
-cd backend
-.venv\Scripts\python.exe -m pytest -v
-```
-
-Result: 54 passed. The 14 Phase 3 tests cover distance, ETA, rules, eligibility, scoring, partial plans, hospital ranking, atomic rollback, conflicts, lifecycle, release behavior, summary, reset, 404, 409, and 422 responses.
-
-### Phase 3 limitations
-
-This remains a deterministic simulation. Distance is straight-line, ETA uses fixed speeds, SQLite is prototype storage, capacity/demand rules are simplified, and no real dispatch, routing, GPS, alerting, frontend Phase 3 UI, authentication, cloud, Gemini, ML, or agents are included.
+Phase 3 is a simulated workflow. ETA uses straight-line distance and fixed speeds, not road networks. SQLite is used for prototype concurrency. Bed capacity and resource shortages are request-time estimates. No actual emergency alerts or autonomous agents are implemented.
