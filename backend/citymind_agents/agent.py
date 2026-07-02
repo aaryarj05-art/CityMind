@@ -1,4 +1,4 @@
-from .risk_agent import risk_intelligence_agent
+from .response_agent import response_planning_agent
 
 
-root_agent = risk_intelligence_agent
+root_agent = response_planning_agent
