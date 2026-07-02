@@ -1,6 +1,6 @@
 # Current Status
 
-**Current Phase:** Phase 2 — Deterministic Risk Intelligence (backend + frontend complete, UI consistency pass applied)
+**Current Phase:** Phase 3 - Resource Allocation and Simulated Dispatch Intelligence (backend complete and verified)
 
 ## Completed
 
@@ -53,7 +53,7 @@ Run from `backend`:
 .venv\Scripts\python.exe -m pytest -v
 ```
 
-40 tests pass: 11 Phase 1 tests + 29 Phase 2 tests.
+54 tests pass: all 40 Phase 1/2 tests + 14 Phase 3 tests.
 
 ### Frontend Build
 
@@ -97,3 +97,25 @@ npm run dev
 ## Known Limitations
 
 Phase 2 uses seeded request-time data and a straight-line 5 km proximity radius. It does not include live feeds, caching, dispatch, route optimization, authentication, WebSockets, cloud deployment, ML, computer vision, Gemini, or agents.
+## Phase 3 Backend
+
+- Central incident-to-resource requirements, capacity rules, speeds, scoring weights, and lifecycle transitions.
+- Haversine distance and deterministic traffic/rainfall/severity-adjusted ETA.
+- Explainable resource eligibility, ranking, partial plans, and explicit shortages.
+- Medical/road-accident hospital ranking and transactional bed reservation.
+- Persisted `Dispatch` and `DispatchAssignment` tables created safely through existing `create_all` initialization.
+- Atomic simulated dispatch creation, double-assignment prevention, duplicate-active-dispatch prevention, cancellation, progression, completion, filtering, summary, and environment-protected demo reset.
+- Existing Phase 1 and Phase 2 behavior remains passing and Phase 2 risk scoring is unchanged.
+
+### Phase 3 verification
+
+```powershell
+cd backend
+.venv\Scripts\python.exe -m pytest -v
+```
+
+Result: 54 passed. The 14 Phase 3 tests cover distance, ETA, rules, eligibility, scoring, partial plans, hospital ranking, atomic rollback, conflicts, lifecycle, release behavior, summary, reset, 404, 409, and 422 responses.
+
+### Phase 3 limitations
+
+This remains a deterministic simulation. Distance is straight-line, ETA uses fixed speeds, SQLite is prototype storage, capacity/demand rules are simplified, and no real dispatch, routing, GPS, alerting, frontend Phase 3 UI, authentication, cloud, Gemini, ML, or agents are included.

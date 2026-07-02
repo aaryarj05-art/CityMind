@@ -3,3 +3,4 @@ from .incident import Incident
 from .resource import Resource
 from .hospital import Hospital
 from .complaint import Complaint
+from .dispatch import Dispatch, DispatchAssignment

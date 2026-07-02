@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 from app.database import engine, Base, SessionLocal
 from app.seed.seed_data import seed_db
-from app.routes import dashboard, areas, incidents, resources, hospitals, complaints, risk
+from app.routes import dashboard, areas, incidents, resources, hospitals, complaints, risk, dispatch, demo
 
 load_dotenv()
 
@@ -54,3 +54,6 @@ app.include_router(resources.router, prefix="/api")
 app.include_router(hospitals.router, prefix="/api")
 app.include_router(complaints.router, prefix="/api")
 app.include_router(risk.router, prefix="/api")
+app.include_router(dispatch.allocation_router, prefix="/api")
+app.include_router(dispatch.dispatch_router, prefix="/api")
+app.include_router(demo.router, prefix="/api")

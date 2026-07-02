@@ -14,7 +14,7 @@ CityMind is a decision-intelligence platform for city control rooms. It aggregat
 
 - Phase 1: Foundation and dashboard — complete.
 - Phase 2: Deterministic risk scoring and incident intelligence — complete.
-- Phase 3: Resource allocation and dispatch — not implemented.
+- Phase 3: Resource allocation and simulated dispatch - complete.
 - Phase 4: Gemini and agentic intelligence — not implemented.
 - Phase 5: Simulation, deployment, and demo polish — not implemented.
 
@@ -86,3 +86,68 @@ Invalid constrained query values return HTTP 422. Responses use Pydantic schemas
 - Missing hospital data uses a neutral fallback; missing resource categories are treated as fully short.
 - Calculations are request-time and uncached, suitable for the current small dataset.
 - No authentication, WebSockets, cloud deployment, machine learning, computer vision, routing, dispatch, Gemini, or AI agents are included in Phase 2.
+## Phase 3 Resource Allocation and Dispatch Intelligence
+
+Phase 3 is a deterministic simulation and decision-support workflow. It does not control real emergency systems.
+
+### Incident-to-resource mapping
+
+- Medical Emergency: 1 Ambulance; Critical adds a second Ambulance.
+- Road Accident: 1 Ambulance and 1 Police Vehicle; Critical adds a second Ambulance.
+- Fire: 1 Fire Engine; High/Critical adds 1 Ambulance.
+- Traffic Congestion: 1 Police Vehicle.
+- Road Blockage: 1 Police Vehicle and 1 Municipal Unit.
+- Waterlogging: 1 Municipal Unit.
+- Public Disturbance: 1 Police Vehicle.
+
+Rules live in `backend/app/config/allocation_rules.py`. Eligible resources must match the required type, be Available and unassigned, have Standard-or-better configured capacity, have valid coordinates, and have no assignment in another active dispatch.
+
+### Distance, ETA, and suitability
+
+Distance uses the Haversine straight-line formula and is rounded to two decimals. It is not road-network distance.
+
+```text
+base_minutes = distance_km / configured_speed_kmh * 60
+delay_modifier = 1 + traffic_score*0.50 + rainfall_score*0.30 + severity_score*0.20
+final_eta = max(2 minutes, base_minutes * delay_modifier)
+```
+
+The normalized scores in the modifier are divided by 100. Speeds are Ambulance 40, Police Vehicle 45, Fire Engine 35, and Municipal Unit 30 km/h.
+
+Resource suitability is clamped to 0-100:
+
+```text
+ETA 40% + readiness 20% + type match 20% + capacity 10% + area conditions 10%
+```
+
+The planner returns ranked eligible and rejected candidates, factor scores, contributions, deterministic reasons, recommendations, explicit shortages, and partial-plan status.
+
+### Hospital matching
+
+Medical Emergency and Road Accident plans rank operational hospitals with sufficient beds and non-Full emergency capacity using transport ETA 35%, available beds 25%, emergency capacity 20%, operational status 10%, and load headroom 10%. Expected demand is one bed, or two for Critical incidents. Creating a dispatch reserves those beds; cancellation releases them, completion treats them as occupied, and demo reset restores the demo baseline.
+
+### Persisted models and schema initialization
+
+`Dispatch` stores the incident, lifecycle, timestamps, hospital, completeness, shortages, notes, ETA, and reset metadata. `DispatchAssignment` stores each selected resource, role, rank sequence, distance, ETA, suitability, and release state. Existing `Base.metadata.create_all()` safely creates only missing SQLite tables at application import/startup; it does not delete existing data. A production migration tool remains recommended before deployment.
+
+### Lifecycle and state integration
+
+Allowed transitions are Planned -> Dispatched or Cancelled; Dispatched -> En Route or Cancelled; En Route -> On Scene; On Scene -> Transporting or Completed; and Transporting -> Completed. Terminal states reject further transitions with HTTP 409.
+
+Creation starts a simulated dispatch in Dispatched, marks resources Dispatched, and marks the incident Assigned. Because the existing resource enum has no En Route value, resources remain Dispatched at that stage. On Scene updates resources to On Scene. Completion releases resources and marks the incident Resolved. Cancellation releases resources, restores the previous incident state, and does not close the incident. Transactions rollback all changes when validation or persistence fails.
+
+### Phase 3 API
+
+- `GET /api/allocation/incidents/{incident_id}/plan` - side-effect-free allocation and hospital plan.
+- `POST /api/dispatches` - create an atomic simulated dispatch using explicit or recommended resources.
+- `GET /api/dispatches` - filters: status, incident_id, resource_id, active_only.
+- `GET /api/dispatches/summary` - active count, assigned resources, ETA, incomplete plans, shortages, status counts.
+- `GET /api/dispatches/{dispatch_id}` - dispatch and assignments.
+- `PATCH /api/dispatches/{dispatch_id}/status` - validated lifecycle transition.
+- `POST /api/dispatches/{dispatch_id}/cancel` - cancel and release.
+- `POST /api/dispatches/{dispatch_id}/complete` - complete and release.
+- `POST /api/demo/reset` - development/demo/test-only restoration of Phase 3 simulated state.
+
+### Phase 3 limitations
+
+ETA uses straight-line distance and fixed speeds, not roads, traffic feeds, navigation, or GPS. SQLite concurrency is suitable for the prototype, not a real dispatch centre. Capacity labels and hospital demand are simplified. Reset affects only Phase 3 dispatch-linked records. There is no frontend UI, autonomous execution, external emergency integration, notifications, authentication, WebSockets, cloud deployment, Gemini, ML, or agents.
