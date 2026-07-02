@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy-50: #f4f7fb;
+  --color-navy-100: #e8eef7;
+  --color-navy-200: #cbd8e8;
+  --color-navy-300: #9fb7d2;
+  --color-navy-400: #6d91b5;
+  --color-navy-500: #4c7198;
+  --color-navy-600: #3b5879;
+  --color-navy-700: #314863;
+  --color-navy-800: #2c3e53;
+  --color-navy-900: #182332;
+  --color-navy-950: #0b111b;
+}
+
+@layer base {
+  body {
+    @apply bg-navy-900 text-slate-200 antialiased;
+  }
+}
+
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+}
