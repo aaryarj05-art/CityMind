@@ -1,4 +1,4 @@
-from .response_agent import response_planning_agent
+from .communication_agent import public_communication_agent
 
 
-root_agent = response_planning_agent
+root_agent = public_communication_agent
