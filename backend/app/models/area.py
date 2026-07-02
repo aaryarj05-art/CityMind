@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime
 from app.database import Base
-from datetime import datetime
+from datetime import datetime, timezone
 
 class Area(Base):
     __tablename__ = "areas"
@@ -17,4 +17,4 @@ class Area(Base):
     complaint_count = Column(Integer)
     active_incident_count = Column(Integer)
     main_issue = Column(String)
-    last_updated = Column(DateTime, default=datetime.utcnow)
+    last_updated = Column(DateTime, default=lambda: datetime.now(timezone.utc))

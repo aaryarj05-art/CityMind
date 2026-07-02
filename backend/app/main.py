@@ -1,12 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 from dotenv import load_dotenv
 
 from app.database import engine, Base, SessionLocal
 from app.seed.seed_data import seed_db
-from app.routes import dashboard, areas, incidents, resources, hospitals, complaints
+from app.routes import dashboard, areas, incidents, resources, hospitals, complaints, risk
 
 load_dotenv()
 
@@ -43,7 +43,7 @@ def health_check():
     return {
         "status": "ok",
         "environment": os.getenv("APP_ENV", "development"),
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 # Include routers
@@ -53,3 +53,4 @@ app.include_router(incidents.router, prefix="/api")
 app.include_router(resources.router, prefix="/api")
 app.include_router(hospitals.router, prefix="/api")
 app.include_router(complaints.router, prefix="/api")
+app.include_router(risk.router, prefix="/api")

@@ -1,81 +1,71 @@
 # Current Status
 
-**Current Phase:** Phase 1: Foundation and Dashboard (Fully Completed and Verified)
+**Current Phase:** Phase 2 — Deterministic Risk Scoring and Incident Intelligence (implemented and verified)
 
-## Completed Features
-- **Documentation**: Initialized and updated specification (`CITYMIND_SPEC.md`), status tracking (`CURRENT_STATUS.md`), and run instructions (`README.md`).
-- **Backend API**:
-  - FastAPI structure running on SQLite.
-  - Seeding logic dynamically populates 12 areas (Mysuru), 5 hospitals, 15 incidents, 30 emergency resources, and 20 complaints.
-  - REST endpoints for `/api/health`, `/api/dashboard`, `/api/areas`, `/api/incidents`, `/api/resources`, `/api/hospitals`, and `/api/complaints`.
-  - Comprehensive unit test suite with 11 test cases passed.
-- **Frontend Dashboard**:
-  - React (Vite) + Tailwind CSS (v4) with a modern navy "command-center" aesthetic.
-  - Interactive Leaflet map displaying live incident, hospital, and resource markers.
-- **Notification Dropdown**:
-  - Interactive dropdown bell in Topbar dynamically deriving critical zone warnings, high-severity incidents, offline/delayed data feeds, and resource shortages from backend API data.
-  - Implements unread count badge, mark individual notification as read, mark all read, escape-key closing, click-outside closing, and screen-reader accessibility.
-- **Incidents Page**:
-  - Full API-backed search, sort, and filtering by category, severity, status.
-  - Interactive details modal for viewing all incident parameters (coordinates, responding departments, timestamps, descriptions).
-- **Resources Page**:
-  - Live summary metrics at the top (total, available, dispatched, on-scene, returning, maintenance/offline).
-  - List filtering by type (Ambulance, Police Vehicle, Fire Engine, Municipal Unit), status, and area.
-  - Interactive display-only details modal.
-- **Analytics Page**:
-  - Real Recharts charts derived dynamically from backend SQLite database:
-    1. Incidents by Category (Pie Chart)
-    2. Incidents by Severity (Bar Chart)
-    3. Resources by Status (Bar Chart)
-    4. Area Operational Scores (Bar Chart)
-  - Key city metrics summary displaying total incidents, most common incident category, average operational score, and resource availability percentage.
-- **Risk Zones Page**:
-  - Searchable list of all areas in Mysuru showing ward number, operational score, status, traffic level, rainfall (mm), complaint count, active incident count, main issue, and last updated timestamp.
-  - Custom status and minimum operational score filters.
-  - Area details modal for granular analysis of metrics.
-- **Settings Page**:
-  - Display cards for selected city, application environment, refresh intervals, simulated feed status, notification preference switches, masked API base URL, and live backend connection status indicator.
+## Completed
 
-## Files Created/Modified
-- Created/Modified:
-  - `frontend/src/pages/Incidents.jsx`
-  - `frontend/src/pages/Resources.jsx`
-  - `frontend/src/pages/Analytics.jsx`
-  - `frontend/src/pages/RiskZones.jsx`
-  - `frontend/src/pages/Settings.jsx`
-  - `frontend/src/components/layout/Topbar.jsx`
-  - `frontend/src/components/layout/Sidebar.jsx`
-  - `frontend/src/components/common/Modal.jsx`
-  - `backend/tests/test_health.py`
-  - `CURRENT_STATUS.md`
+### Phase 1 preserved
 
-## Working Run Commands
-- **Backend**:
-  ```powershell
-  cd backend
-  .venv\Scripts\activate
-  uvicorn app.main:app --reload --port 8000
-  ```
-- **Frontend**:
-  ```powershell
-  cd frontend
-  npm run dev
-  ```
-  *(Dev server automatically falls back to port `5174` if `5173` is occupied)*
+- FastAPI + SQLite backend and automatic Mysuru seed data.
+- Existing dashboard, area, incident, resource, hospital, and complaint APIs.
+- Existing React command-center dashboard and pages.
+- All 11 original Phase 1 backend tests remain passing.
 
-## API Endpoints Available
-- `GET /api/health`
-- `GET /api/dashboard/summary`
-- `GET /api/dashboard`
-- `GET /api/areas` & `GET /api/areas/{id}`
-- `GET /api/incidents` & `GET /api/incidents/{id}`
-- `GET /api/resources` & `GET /api/resources/{id}`
-- `GET /api/hospitals`
-- `GET /api/complaints`
+### Phase 2 backend
 
-## Verification & Testing
-- **Backend Tests**: `pytest` run passed successfully with 11 test cases.
-- **Frontend Build**: Production compile `npm run build` succeeded with no errors.
+- Central validated risk and incident-priority weights.
+- Transparent normalization and 0–100 clamping.
+- Dynamic area risk scoring with Low, Moderate, High, and Critical classification.
+- Bounded multi-incident severity aggregation.
+- Geographic 5 km hospital/resource proximity calculations.
+- Structured factor scores, contributions, deterministic top factors, explanations, priorities, and UTC timestamps.
+- Deterministic incident priority scoring with Routine, Elevated, Urgent, and Immediate classification.
+- Pydantic response contracts and HTTP 404/422 handling.
+- No persisted risk tables and no changes to Phase 1 operational scores.
 
-## Next Recommended Phase
-- **Phase 2: Deterministic Risk-Scoring Engine** to calculate real operational scores based on dynamic, live incident inputs.
+## Phase 2 Endpoints
+
+- `GET /api/risk/areas`
+- `GET /api/risk/areas/{area_id}`
+- `GET /api/risk/incidents`
+- `GET /api/risk/incidents/{incident_id}`
+- `GET /api/risk/summary`
+
+## Verification
+
+Run from `backend`:
+
+```powershell
+.venv\Scripts\python.exe -m pytest -v
+```
+
+The completed suite contains the 11 Phase 1 tests plus Phase 2 normalization, clamping, boundary, explainability, priority, filter, sorting, invalid-ID, and summary coverage.
+
+## Run Commands
+
+Backend:
+
+```powershell
+cd backend
+.venv\Scripts\activate
+uvicorn app.main:app --reload --port 8000
+```
+
+Frontend:
+
+```powershell
+cd frontend
+npm run dev
+```
+
+## Known Limitations
+
+Phase 2 uses seeded request-time data and a straight-line 5 km proximity radius. It does not include live feeds, caching, dispatch, route optimization, authentication, WebSockets, cloud deployment, ML, computer vision, Gemini, or agents.
+
+## Recommended Next Frontend Work for Antigravity
+
+- Replace Risk Zones operational-score displays with `/api/risk/areas` data.
+- Add factor-contribution bars, top-factor labels, explanations, and calculated timestamps to area details.
+- Add a priority-ranked incident view using `/api/risk/incidents` with status/area/priority filters.
+- Add city summary cards sourced from `/api/risk/summary`.
+- Preserve Phase 1 views while adding loading, empty, validation, and 404 states for the new contracts.

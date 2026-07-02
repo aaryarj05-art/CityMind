@@ -1,35 +1,18 @@
 # CityMind
 
-CityMind – AI Decision Intelligence Platform for Smarter Cities.
+CityMind is a smart-city control-room dashboard with a React frontend, FastAPI backend, SQLAlchemy, Pydantic, and SQLite.
 
-This project provides a professional smart-city control-room dashboard for city control-room officers, traffic departments, emergency response teams, hospitals, municipal departments, and public-safety authorities.
+## Implemented Scope
 
-## Phase 1 Scope
-This repository contains Phase 1: Project Foundation and Dashboard Shell. It establishes a robust foundation with a React frontend, FastAPI backend, SQLite database, and realistic mock data for Mysuru city. Advanced AI algorithms, Gemini, and real-time dispatches will be implemented in future phases.
+- Phase 1: dashboard foundation, Mysuru seed data, map and operational entity APIs.
+- Phase 2: deterministic, explainable area risk and incident-priority intelligence.
 
-## Architecture Summary
-- **Frontend**: React, Vite, Tailwind CSS, React Router, Axios, Recharts, Leaflet.
-- **Backend**: Python, FastAPI, Uvicorn, SQLAlchemy, Pydantic, SQLite.
-- **Database**: SQLite (Phase 1).
+Phase 2 does not include AI/ML, Gemini, agents, resource dispatch, route optimization, computer vision, live CCTV, WebSockets, cloud deployment, or authentication.
 
-## Folder Structure
-```text
-citymind/
-├── frontend/        # React application
-├── backend/         # FastAPI application
-├── CITYMIND_SPEC.md # Project vision, scope, API contracts
-├── CURRENT_STATUS.md# Implementation status tracking
-└── README.md        # Setup and run instructions
-```
+## Setup
 
-## Prerequisites
-- Node.js (v18+)
-- Python (3.9+)
-- Git
+Prerequisites: Python 3.9+, Node.js 18+, and Git.
 
-## Windows Setup Instructions
-
-### Backend Installation
 ```powershell
 cd backend
 python -m venv .venv
@@ -37,48 +20,75 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-### Database Seeding
-The backend application is configured to automatically seed the SQLite database upon the first startup.
+The SQLite database is seeded automatically on first backend startup.
 
-### Run Backend
+## Run
+
+Backend:
+
 ```powershell
 cd backend
 .venv\Scripts\activate
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --port 8000
 ```
-The FastAPI server will start on `http://localhost:8000`.
-API documentation is available at `http://localhost:8000/docs`.
 
-### Frontend Installation & Run
+API: `http://localhost:8000/api`
+OpenAPI docs: `http://localhost:8000/docs`
+
+Frontend:
+
 ```powershell
 cd frontend
 npm install
 npm run dev
 ```
-The frontend will start on `http://localhost:5173`.
 
-## Environment Variables
-Example `.env` for backend:
+Frontend: `http://localhost:5173` (Vite may select the next free port).
+
+## Deterministic Risk Formula
+
+```text
+traffic 25% + rainfall 20% + active incidents 20% + complaints 15%
++ hospital load 10% + emergency resource shortage 10%
+```
+
+Inputs and output are clamped to 0–100 and the result is rounded to two decimals. Risk levels are Low (0–30), Moderate (>30–60), High (>60–80), and Critical (>80–100). Full normalization and incident-priority rules are documented in `CITYMIND_SPEC.md`.
+
+## Phase 2 API
+
+- `GET /api/risk/areas?risk_level=&min_score=&search=&sort_order=`
+- `GET /api/risk/areas/{area_id}`
+- `GET /api/risk/incidents?priority_level=&status=&area_id=`
+- `GET /api/risk/incidents/{incident_id}`
+- `GET /api/risk/summary`
+
+Scores are computed dynamically from existing rows; Phase 1 `operational_score` and `status` values are not overwritten.
+
+## Tests
+
+```powershell
+cd backend
+.venv\Scripts\python.exe -m pytest -v
+```
+
+The suite covers both the original Phase 1 APIs and Phase 2 algorithms/endpoints.
+
+## Environment
+
+Backend `.env` example:
+
 ```text
 APP_ENV=development
 DATABASE_URL=sqlite:///./citymind.db
 FRONTEND_ORIGIN=http://localhost:5173
 ```
-Example `.env` for frontend:
+
+Frontend `.env` example:
+
 ```text
 VITE_API_BASE_URL=http://localhost:8000/api
 ```
 
-## Troubleshooting
-- If you face CORS errors, check `FRONTEND_ORIGIN` in the backend `.env`.
-- Ensure ports `8000` and `5173` are not in use.
-- The `citymind.db` file will be created in the `backend` directory. Delete it and restart the server to trigger re-seeding if data is corrupted.
+## Known Limitations
 
-## Screenshots
-*(To be added)*
-
-## Future Roadmap
-- Phase 2: Deterministic risk-scoring engine
-- Phase 3: Resource allocation and dispatch
-- Phase 4: Gemini recommendations and agentic intelligence
-- Phase 5: Simulation, deployment, testing, and demo polish
+Data is seeded rather than live; proximity uses a 5 km straight-line radius; calculations are uncached at request time; hospital absence falls back to neutral load; and missing local resource types count as fully short.
