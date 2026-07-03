@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, AlertTriangle, Activity, Send, Users, BarChart3, Settings } from 'lucide-react';
+import { LayoutDashboard, AlertTriangle, Activity, Send, Users, BarChart3, Settings, Sparkles } from 'lucide-react';
 
 const Sidebar = () => {
   const navItems = [
     { name: 'Overview', path: '/', icon: LayoutDashboard },
+    { name: 'AI Command Center', path: '/ai-command-center', icon: Sparkles },
     { name: 'Risk Zones', path: '/risk-zones', icon: AlertTriangle },
     { name: 'Incidents', path: '/incidents', icon: Activity },
     { name: 'Dispatches', path: '/dispatches', icon: Send },

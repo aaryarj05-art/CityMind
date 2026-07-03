@@ -6,12 +6,14 @@ import Dispatches from './pages/Dispatches';
 import Resources from './pages/Resources';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
+import AICommandCenter from './pages/AICommandCenter';
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Dashboard />} />
+        <Route path="/ai-command-center" element={<AICommandCenter />} />
         <Route path="/risk-zones" element={<RiskZones />} />
         <Route path="/incidents" element={<Incidents />} />
         <Route path="/dispatches" element={<Dispatches />} />

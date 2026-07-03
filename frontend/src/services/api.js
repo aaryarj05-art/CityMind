@@ -61,4 +61,8 @@ export const demoAPI = {
   reset: () => api.post('/demo/reset'),
 };
 
+export const aiAPI = {
+  query: (payload) => api.post('/ai/query', payload),
+};
+
 export default api;

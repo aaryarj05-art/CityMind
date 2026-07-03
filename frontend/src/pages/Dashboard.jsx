@@ -12,7 +12,8 @@ import DispatchDetailsDrawer from '../components/common/DispatchDetailsDrawer';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { riskAPI, areasAPI, dispatchAPI } from '../services/api';
 import { formatDate } from '../utils/formatters';
-import { AlertCircle, Map, Siren, Shield, Truck, Clock, ShieldAlert, Brain, Zap, Send, Eye, Users, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, Map, Siren, Shield, Truck, Clock, ShieldAlert, Brain, Zap, Send, Eye, Users, CheckCircle2, Sparkles } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
   const { data: p1Data, loading: p1Loading, error: p1Error, refetch: p1Refetch } = useDashboardData();
@@ -30,6 +31,16 @@ const Dashboard = () => {
 
   // Selected dispatch for details drawer
   const [selectedDispatchId, setSelectedDispatchId] = useState(null);
+
+  const [aiStatus, setAiStatus] = useState(() => sessionStorage.getItem('citymind_ai_status') || 'available');
+
+  useEffect(() => {
+    const handleStatusChange = (e) => {
+      setAiStatus(e.detail || 'available');
+    };
+    window.addEventListener('citymind-ai-status-change', handleStatusChange);
+    return () => window.removeEventListener('citymind-ai-status-change', handleStatusChange);
+  }, []);
 
   const fetchDashboardData = async () => {
     setRiskLoading(true);
@@ -450,6 +461,46 @@ const Dashboard = () => {
           <ResourceSummary summary={resource_summary} />
           
           <SystemStatus statuses={summary.feed_statuses} />
+        </div>
+      </div>
+
+      {/* AI Command Center Card (Phase 4) */}
+      <div className="mt-6 bg-navy-800 border border-navy-700 rounded-xl p-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-500/10 rounded-lg">
+              <Sparkles className="w-5 h-5 text-blue-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-white">CityMind AI Command Center</h3>
+              <p className="text-xs text-slate-400">Google ADK multi-agent orchestration — ask operational questions across all city systems.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${
+                aiStatus === 'available' ? 'bg-emerald-400 animate-pulse' :
+                aiStatus === 'processing' ? 'bg-blue-400 animate-pulse' :
+                'bg-red-500'
+              }`} />
+              <span className={`text-[11px] font-medium ${
+                aiStatus === 'available' ? 'text-emerald-400' :
+                aiStatus === 'processing' ? 'text-blue-400' :
+                'text-red-400'
+              }`}>
+                {aiStatus === 'available' ? 'AI Available' :
+                 aiStatus === 'processing' ? 'AI Processing' :
+                 'AI Offline'}
+              </span>
+            </div>
+            <Link
+              to="/ai-command-center"
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Ask CityMind AI
+            </Link>
+          </div>
         </div>
       </div>
 

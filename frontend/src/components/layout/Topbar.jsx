@@ -1,13 +1,22 @@
-import { Bell, MapPin, AlertTriangle, Siren, Activity, Rss, CheckCheck, Brain } from 'lucide-react';
+import { Bell, MapPin, AlertTriangle, Siren, Activity, Rss, CheckCheck, Brain, Sparkles } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { dashboardAPI, riskAPI } from '../../services/api';
+import { dashboardAPI, riskAPI, dispatchAPI } from '../../services/api';
 
 const Topbar = ({ title }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [readIds, setReadIds] = useState(new Set());
+  const [aiStatus, setAiStatus] = useState(() => sessionStorage.getItem('citymind_ai_status') || 'available');
   const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleStatusChange = (e) => {
+      setAiStatus(e.detail || 'available');
+    };
+    window.addEventListener('citymind-ai-status-change', handleStatusChange);
+    return () => window.removeEventListener('citymind-ai-status-change', handleStatusChange);
+  }, []);
 
   // Update clock every minute
   useEffect(() => {
@@ -297,6 +306,25 @@ const Topbar = ({ title }) => {
           <span>{currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
           <span>•</span>
           <span>{currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
+
+        {/* AI Status Indicator */}
+        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-navy-900 rounded-full border border-navy-700">
+          <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+          <span className={`w-1.5 h-1.5 rounded-full ${
+            aiStatus === 'available' ? 'bg-emerald-400 animate-pulse' :
+            aiStatus === 'processing' ? 'bg-blue-400 animate-pulse' :
+            'bg-red-500'
+          }`} />
+          <span className={`text-[11px] font-medium ${
+            aiStatus === 'available' ? 'text-emerald-400' :
+            aiStatus === 'processing' ? 'text-blue-400' :
+            'text-red-400'
+          }`}>
+            {aiStatus === 'available' ? 'AI Available' :
+             aiStatus === 'processing' ? 'AI Processing' :
+             'AI Offline'}
+          </span>
         </div>
         
         {/* Notification Bell */}
