@@ -1,4 +1,4 @@
-from .communication_agent import public_communication_agent
+from .coordinator import city_operations_coordinator
 
 
-root_agent = public_communication_agent
+root_agent = city_operations_coordinator
