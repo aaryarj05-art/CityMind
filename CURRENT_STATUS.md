@@ -1,6 +1,6 @@
 # Current Status
 
-**Current Phase:** Phase 4 — Google AI Command Center Integration (backend + frontend integration complete, build verified, all tests passing)
+**Current Phase:** Phase 5A — deterministic Google Maps backend integration complete; frontend Maps integration remains out of scope
 
 ## Completed
 
@@ -43,6 +43,26 @@
 - **Quick Operational Context Panel**: Reads metrics (average risk, highest-risk area, dispatches summary, active shortages) from existing APIs.
 - **Dashboard Overview Card**: Embedded "Ask CityMind AI" overview card linking to the AI Command Center page.
 
+### Phase 5A Google Maps Backend
+
+- Added traffic-aware Compute Routes and Compute Route Matrix clients using `GOOGLE_MAPS_SERVER_API_KEY` exclusively via `X-Goog-Api-Key`.
+- Added explicit non-live Haversine/fixed-speed fallbacks for missing keys and Routes failures; fallback data is never labeled as live traffic.
+- Added 90-second in-memory coordinate-rounded caching for route, matrix, and nearby-hospital requests.
+- Preserved resource availability, assignment, active-dispatch, type, and incident-capacity eligibility before route-matrix ranking.
+- Added Places Nearby Search (New) for real hospital identity/location data with structured 503 failures and no invented fields.
+- Added `hospital_external_mappings`; only verified place-ID mappings inherit CityMind operational capacity.
+- Added deterministic live hospital scoring with exposed 40/25/20/10/5 percent ETA/capability/beds/ICU/distance components. Incompatible verified hospitals are rejected.
+- Unmatched Google hospitals retain null beds/ICU data and `capacity_source: "unknown"`; CityMind seed capacity is labeled simulated.
+- Google-derived congestion levels are CityMind classifications, not labels supplied by Google.
+- Added 30 mocked integration test cases (84 total collected test cases). Pytest never calls Google.
+
+### Phase 5A Endpoints
+
+- `POST /api/maps/route`
+- `POST /api/maps/route-matrix`
+- `GET /api/hospitals/nearby`
+- `POST /api/hospitals/rank-live`
+
 ## Phase 4 Endpoints Consumed
 
 - `POST /api/ai/query` — routes requests to port 8001 ADK service coordinator
@@ -58,7 +78,7 @@ Run from `backend`:
 .venv\Scripts\python.exe -m pytest -v
 ```
 
-**Result:** 54 passed (covering allocation, dispatch lifecycle, and demo reset protection).
+**Result:** `84 passed, 2 warnings in 1.78s` (full Phase 1–5A backend suite).
 
 ### Frontend Build
 
@@ -106,3 +126,5 @@ npm run dev
 ## Known Limitations
 
 AI Command Center runs as a simulated controller. Session storage is active per-tab. High-latency agent requests require loading state transitions. No production Auth, BigQuery, Vertex AI, RAG, or computer vision is included.
+
+Phase 5A limitations: no frontend Google Maps, no Traffic/Hospital Intelligence ADK agents, no cross-process cache, and no automatic fuzzy mapping. Google Places does not provide live beds or verified ICU/admission capability; WHO and Google do not provide universal real-time hospital-bed availability. Real API-key quota, billing, API enablement, and live Mysuru responses require manual verification.
