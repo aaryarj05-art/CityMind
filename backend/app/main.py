@@ -1,3 +1,4 @@
+from app.routes import ai
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timezone
@@ -57,3 +58,4 @@ app.include_router(risk.router, prefix="/api")
 app.include_router(dispatch.allocation_router, prefix="/api")
 app.include_router(dispatch.dispatch_router, prefix="/api")
 app.include_router(demo.router, prefix="/api")
+app.include_router(ai.router)
