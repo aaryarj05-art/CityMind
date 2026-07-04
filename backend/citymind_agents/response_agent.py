@@ -1,5 +1,8 @@
 from google.adk.agents import Agent
 
+from .hospital_agent import hospital_intelligence_agent
+from .traffic_agent import traffic_intelligence_agent
+
 from .tools.response_tools import (
     get_dispatch_summary,
     get_incident_allocation_plan,
@@ -58,6 +61,23 @@ Rules:
 
 9. Never claim that real-world emergency action has occurred.
 
+10. Delegate route, ETA, congestion, nearest-versus-fastest, and resource-comparison questions to traffic_intelligence_agent.
+
+11. Delegate hospital discovery, suitability, capacity provenance, and deterministic ranking questions to hospital_intelligence_agent.
+
+12. For a complete emergency response plan or any mixed traffic-and-hospital request:
+    - do not transfer the request back to city_operations_coordinator;
+    - delegate first to traffic_intelligence_agent;
+    - when control returns, delegate to hospital_intelligence_agent;
+    - call get_incident_allocation_plan when resource requirements are needed;
+    - synthesize all verified results and explicitly state data limitations.
+
+13. Never replace specialist tool results with assumptions.
+
+14. Do not convert recommendations into confirmed dispatch actions and do not claim that a hospital accepted a patient or reserved a bed.
+
+15. When a live/mixed hospital request also uses get_incident_allocation_plan, label every legacy CityMind hospital bed or capacity value as simulated planning data. Never attach those values to an unmatched Google place. Use hospital_intelligence_agent output as the authority for identity, verified mapping, capacity provenance, and unknown fields.
+
 Use this response structure where relevant:
 
 Response assessment:
@@ -67,6 +87,10 @@ Estimated response:
 Shortages or limitations:
 Verified source:
 """,
+    sub_agents=[
+        traffic_intelligence_agent,
+        hospital_intelligence_agent,
+    ],
     tools=[
         get_incident_allocation_plan,
         get_dispatch_summary,
