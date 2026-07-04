@@ -293,30 +293,30 @@ const Topbar = ({ title }) => {
   };
 
   return (
-    <div className="h-16 bg-navy-800 border-b border-navy-700 flex items-center justify-between px-8 sticky top-0 z-20">
-      <h2 className="text-xl font-semibold text-white">{title}</h2>
+    <div className="h-16 bg-navy-800 border-b border-navy-700 flex items-center justify-between gap-3 px-3 sm:px-5 lg:px-8 sticky top-0 z-20">
+      <h2 className="min-w-0 truncate text-base sm:text-xl font-semibold text-white">{title}</h2>
       
-      <div className="flex items-center space-x-6 text-sm">
-        <div className="flex items-center bg-navy-900 px-3 py-1.5 rounded-full border border-navy-700">
+      <div className="flex flex-shrink-0 items-center gap-1 sm:gap-3 lg:gap-6 text-sm">
+        <div className="hidden lg:flex items-center bg-navy-900 px-3 py-1.5 rounded-full border border-navy-700">
           <MapPin className="w-4 h-4 text-blue-400 mr-2" />
           <span className="text-slate-200 font-medium">Mysuru</span>
         </div>
         
-        <div className="flex items-center space-x-2 text-slate-400">
+        <div className="hidden xl:flex items-center space-x-2 text-slate-400">
           <span>{currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
           <span>•</span>
           <span>{currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
 
         {/* AI Status Indicator */}
-        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-navy-900 rounded-full border border-navy-700">
+        <div className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 bg-navy-900 rounded-full border border-navy-700">
           <Sparkles className="w-3.5 h-3.5 text-blue-400" />
           <span className={`w-1.5 h-1.5 rounded-full ${
             aiStatus === 'available' ? 'bg-emerald-400 animate-pulse' :
             aiStatus === 'processing' ? 'bg-blue-400 animate-pulse' :
             'bg-red-500'
           }`} />
-          <span className={`text-[11px] font-medium ${
+          <span className={`hidden sm:inline text-[11px] font-medium ${
             aiStatus === 'available' ? 'text-emerald-400' :
             aiStatus === 'processing' ? 'text-blue-400' :
             'text-red-400'
@@ -346,7 +346,7 @@ const Topbar = ({ title }) => {
 
           {/* Notification Panel */}
           {showNotifications && (
-            <div className="absolute right-0 top-12 w-96 max-h-[28rem] bg-navy-800 border border-navy-700 rounded-xl shadow-2xl overflow-hidden flex flex-col z-50">
+            <div className="absolute right-0 top-12 w-[min(24rem,calc(100vw-6rem))] max-h-[28rem] bg-navy-800 border border-navy-700 rounded-xl shadow-2xl overflow-hidden flex flex-col z-50">
               <div className="p-4 border-b border-navy-700 flex items-center justify-between bg-navy-800/90 sticky top-0">
                 <h3 className="text-white font-semibold text-sm">Notifications</h3>
                 {unreadCount > 0 && (

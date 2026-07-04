@@ -5,6 +5,7 @@ import CityMap from '../components/dashboard/CityMap';
 import IncidentFeed from '../components/dashboard/IncidentFeed';
 import ResourceSummary from '../components/dashboard/ResourceSummary';
 import SystemStatus from '../components/dashboard/SystemStatus';
+import LiveResponseSummaryCard from '../components/dashboard/LiveResponseSummaryCard';
 import LoadingState from '../components/common/LoadingState';
 import ErrorState from '../components/common/ErrorState';
 import RiskLevelBadge from '../components/common/RiskLevelBadge';
@@ -463,6 +464,14 @@ const Dashboard = () => {
           <SystemStatus statuses={summary.feed_statuses} />
         </div>
       </div>
+
+      <LiveResponseSummaryCard
+        incident={recent_incidents.find((item) =>
+          ['Medical Emergency', 'Road Accident'].includes(item.category)
+          && Number.isFinite(Number(item.latitude))
+          && Number.isFinite(Number(item.longitude))
+        )}
+      />
 
       {/* AI Command Center Card (Phase 4) */}
       <div className="mt-6 bg-navy-800 border border-navy-700 rounded-xl p-5">

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Sparkles, Trash2, Hash, WifiOff, RefreshCw } from 'lucide-react';
 import PageContainer from '../components/layout/PageContainer';
 import AIChatMessage from '../components/ai/AIChatMessage';
@@ -10,11 +11,12 @@ import { aiAPI, dashboardAPI } from '../services/api';
 const SESSION_KEY = 'citymind_ai_session_id';
 
 const AICommandCenter = () => {
+  const location = useLocation();
   const [messages, setMessages] = useState([]);
   const [sessionId, setSessionId] = useState(() => sessionStorage.getItem(SESSION_KEY) || null);
   const [loading, setLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState(() => sessionStorage.getItem('citymind_ai_status') || 'available');
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState(() => location.state?.preparedPrompt || '');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [loadingLabelIdx, setLoadingLabelIdx] = useState(0);
   const [incidents, setIncidents] = useState([]);

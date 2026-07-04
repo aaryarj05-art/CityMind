@@ -29,6 +29,13 @@ export const resourcesAPI = {
 
 export const hospitalsAPI = {
   getAll: () => api.get('/hospitals'),
+  getNearby: (params) => api.get('/hospitals/nearby', { params, timeout: 15000 }),
+  rankLive: (payload) => api.post('/hospitals/rank-live', payload, { timeout: 30000 }),
+};
+
+export const mapsAPI = {
+  getRoute: (payload) => api.post('/maps/route', payload, { timeout: 15000 }),
+  getRouteMatrix: (payload) => api.post('/maps/route-matrix', payload, { timeout: 20000 }),
 };
 
 export const complaintsAPI = {

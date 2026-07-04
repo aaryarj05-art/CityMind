@@ -10,6 +10,7 @@ CityMind is a decision-intelligence platform for city control rooms. It aggregat
 - **Phase 4**: Google ADK multi-agent orchestration, AI Command Center page, session continuity, agent trace pipelines, and grounded response indicators.
 - **Phase 5A**: Backend-only Google Routes and Places integration with deterministic fallbacks, verified hospital-capacity provenance, and mocked external-call tests.
 - **Phase 5B**: Nested ADK Traffic and Hospital Intelligence specialists that explain deterministic Phase 5A tool results.
+- **Phase 5C**: Live Response Intelligence UI with a Google base map, traffic overlay, backend-routed ambulance and hospital comparisons, provenance, dashboard summary, and AI handoff.
 
 ## Setup
 
@@ -25,6 +26,8 @@ pip install -r requirements.txt
 The SQLite database is seeded automatically on first backend startup.
 
 For Phase 5A, set `GOOGLE_MAPS_SERVER_API_KEY` in `backend/.env`. The server sends it only in the `X-Goog-Api-Key` header; it is never returned to clients or placed in request URLs.
+
+For the Phase 5C browser map only, set `VITE_GOOGLE_MAPS_API_KEY` in `frontend/.env`. Restrict this browser key by HTTP referrer and enable only Maps JavaScript API. Routes and Places calls continue to use the separate server key through CityMind's backend APIs.
 
 ## Running the Platform
 
@@ -91,6 +94,20 @@ Traffic responses label Google Routes data as live or CityMind Haversine/fixed-s
 Manual `adk run citymind_agents` verification succeeded for traffic-only, hospital-only, mixed traffic/hospital planning, and Google-traffic-unavailable prompts. Verified traces included both three-agent specialist paths and the four-agent mixed path. The fallback answer explicitly rejected cached, last-known, and historical traffic claims.
 
 Known limitations: ADK delegation and wording remain model-driven; FastAPI must be running on port 8000; Gemini access is required for manual runs; and hospital mappings/capacity remain limited to the deterministic Phase 5A data available at query time.
+## Phase 5C Live Response Intelligence
+
+The `/live-response` workspace adds a lazy-loaded operational map and decision panels without changing the existing incident, allocation, cache, or Google-service behavior:
+
+- Google Maps JavaScript base map with an optional traffic overlay, incident/resource/hospital markers, backend-provided encoded route polylines, viewport fitting, a legend, freshness timestamps, and explicit missing-key/load-failure states.
+- Backend-only route, route-matrix, Places, and live hospital-ranking requests through the centralized API client; no browser call targets Google Routes or Places.
+- Eligible ambulances are filtered from the CityMind allocation plan before route comparison. Hospital results preserve deterministic ranking, verified/simulated/unknown provenance, and unknown capacity for unmatched hospitals.
+- Only the selected ambulance and hospital request full route geometry. Matrix results drive the nearest-versus-fastest impact and are not repeatedly fetched on render.
+- The dashboard includes a compact Live Response summary card, and a prepared operational prompt can be handed to the AI Command Center through router state.
+- Layouts adapt to narrow screens; the shared sidebar/topbar no longer force horizontal overflow at a 390px viewport.
+
+Verification: the production frontend build completed with 2,491 modules transformed; the full backend suite passed (`96 passed, 6 warnings`); and browser checks covered map rendering, traffic toggle, live candidates, incident/ambulance/hospital selection, route highlighting, provenance, dashboard summary, AI prompt handoff, desktop console errors, and mobile overflow.
+
+Known limitations: browser map rendering requires a separately restricted Maps JavaScript key; live Google results still depend on project billing, enabled APIs, quota, and upstream availability; Places does not expose verified live bed/ICU availability; and the current main bundle retains the existing Vite large-chunk warning.
 ---
 
 ## Phase 4 AI Command Center Features
@@ -121,4 +138,4 @@ Run backend tests from `backend`:
 .venv\Scripts\python.exe -m pytest -v
 ```
 
-All 96 tests pass (`96 passed, 6 warnings in 4.53s`). Google HTTP calls are fully mocked; the suite covers routing success/fallbacks, duration and congestion calculations, route-matrix eligibility/ranking/cache behavior, Places parsing/failures, hospital mapping/provenance/ranking, stale capacity, validation, the Phase 5B tool/agent hierarchy, trace extraction, and every preserved Phase 1–4 test.
+All 96 tests pass (`96 passed, 6 warnings in 5.83s`). Google HTTP calls are fully mocked; the suite covers routing success/fallbacks, duration and congestion calculations, route-matrix eligibility/ranking/cache behavior, Places parsing/failures, hospital mapping/provenance/ranking, stale capacity, validation, the Phase 5B tool/agent hierarchy, trace extraction, and every preserved Phase 1–4 test.

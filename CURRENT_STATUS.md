@@ -1,6 +1,6 @@
 # Current Status
 
-**Current Phase:** Phase 5B — nested Traffic and Hospital Intelligence ADK specialists complete; frontend Maps integration remains out of scope
+**Current Phase:** Phase 5C - Live Response Intelligence frontend complete with backend-only Routes/Places usage
 
 ## Completed
 
@@ -74,6 +74,16 @@
 - Safety instructions prohibit invented closures, historical traffic fallbacks, dispatch claims, hospital acceptance claims, and bed-reservation claims.
 - Added 12 fully mocked tests for tools, agent topology, coordinator preservation, and author extraction.
 
+### Phase 5C Live Response Intelligence
+
+- Added lazy-loaded `/live-response` navigation and a responsive Google Maps workspace.
+- Added incident, eligible ambulance, and ranked hospital markers plus backend-encoded ambulance and hospital route polylines.
+- Added a traffic-layer toggle, fit-to-results behavior, map legend, freshness states, and explicit key/load/fallback handling.
+- Added centralized frontend methods for route, route-matrix, nearby-hospital, and live hospital-ranking backend endpoints.
+- Filters ambulance candidates through the existing allocation plan before matrix routing and limits full route calls to selected results.
+- Preserves hospital ranking order, all provenance fields, and unknown capacity for unmatched hospitals.
+- Added nearest-versus-fastest operational impact, responsible-AI guidance, dashboard Live Response summary, and prepared-prompt handoff to AI Command Center.
+- Added responsive sidebar, topbar, and content behavior verified without horizontal overflow at 390px.
 ### Phase 5B Manual ADK Verification
 
 - Traffic prompt: passed; coordinator → response planning → traffic intelligence, with a deterministic route-matrix tool call.
@@ -95,7 +105,7 @@ Run from `backend`:
 .venv\Scripts\python.exe -m pytest -v
 ```
 
-**Result:** `96 passed, 6 warnings in 4.53s` (full Phase 1–5B backend suite).
+**Result:** `96 passed, 6 warnings in 5.83s` (full Phase 1-5C backend suite).
 
 ### Frontend Build
 
@@ -105,7 +115,7 @@ Run from `frontend`:
 npm run build
 ```
 
-**Result:** Builds successfully with no errors (2484 modules transformed, 1.31s).
+**Result:** Builds successfully with no errors (2491 modules transformed, 1.03s). Vite reports the existing large-chunk advisory.
 
 ### Browser/API Proxy Verification
 
@@ -115,6 +125,13 @@ Tested `POST http://localhost:8000/api/ai/query` with port 8001 ADK service acti
 - Agents used matched: `["city_operations_coordinator", "risk_intelligence_agent"]`
 - Returned Kannada characters and structured headers correctly parsed
 
+### Phase 5C Browser Verification
+
+- Google map, live incident/ambulance/hospital markers, and both selected route polylines rendered.
+- Traffic toggle, incident selection, ambulance/hospital selection, route highlighting, provenance badges, and nearest-versus-fastest impact behaved as intended.
+- Dashboard Live Response summary loaded, and AI handoff prefilled the prepared prompt.
+- No console errors were observed on the Live Response or dashboard pages.
+- At a 390x844 viewport, document width remained within the viewport with no horizontal overflow.
 ## Run Commands
 
 Backend FastAPI:
@@ -144,4 +161,4 @@ npm run dev
 
 AI Command Center runs as a simulated controller. Session storage is active per-tab. High-latency agent requests require loading state transitions. No production Auth, BigQuery, Vertex AI, RAG, or computer vision is included.
 
-Phase 5 limitations: no frontend Google Maps, no cross-process cache, and no automatic fuzzy mapping. Traffic/Hospital Intelligence agents are read-only explainers over deterministic backend APIs. Google Places does not provide live beds or verified ICU/admission capability; WHO and Google do not provide universal real-time hospital-bed availability. Real API-key quota, billing, API enablement, and live Mysuru responses require manual verification.
+Phase 5 limitations: the browser map needs a separately restricted Maps JavaScript key; there is no cross-process cache or automatic fuzzy mapping. Traffic/Hospital Intelligence agents are read-only explainers over deterministic backend APIs. Google Places does not provide live beds or verified ICU/admission capability; WHO and Google do not provide universal real-time hospital-bed availability. Real API-key quota, billing, API enablement, and live Mysuru responses require manual verification.
