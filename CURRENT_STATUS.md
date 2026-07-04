@@ -1,6 +1,6 @@
 # Current Status
 
-**Current Phase:** Phase 5A — deterministic Google Maps backend integration complete; frontend Maps integration remains out of scope
+**Current Phase:** Phase 5B — nested Traffic and Hospital Intelligence ADK specialists complete; frontend Maps integration remains out of scope
 
 ## Completed
 
@@ -54,7 +54,7 @@
 - Added deterministic live hospital scoring with exposed 40/25/20/10/5 percent ETA/capability/beds/ICU/distance components. Incompatible verified hospitals are rejected.
 - Unmatched Google hospitals retain null beds/ICU data and `capacity_source: "unknown"`; CityMind seed capacity is labeled simulated.
 - Google-derived congestion levels are CityMind classifications, not labels supplied by Google.
-- Added 30 mocked integration test cases (84 total collected test cases). Pytest never calls Google.
+- Added 30 mocked Phase 5A integration test cases; Phase 5B adds 12 agent/tool cases. Pytest never calls Google.
 
 ### Phase 5A Endpoints
 
@@ -63,6 +63,23 @@
 - `GET /api/hospitals/nearby`
 - `POST /api/hospitals/rank-live`
 
+### Phase 5B ADK Specialists
+
+- Added `traffic_intelligence_agent` and `hospital_intelligence_agent` under `response_planning_agent`; the coordinator retains its original three top-level specialists.
+- Added six read-only tools backed by existing CityMind FastAPI allocation, resource, route, Places, hospital-ranking, and provenance outputs.
+- Traffic tooling preserves eligibility rejections, live/fallback source flags, timestamps, and deterministic nearest-versus-fastest/time-saved facts.
+- Hospital tooling preserves Google identity, deterministic scores, CityMind verified-mapping status, simulated/unknown capacity labels, timestamps, and stale warnings.
+- Mixed requests sequence both nested specialists and return control to Response Planning for synthesis.
+- Real ADK event authors expose three-agent traffic/hospital traces and a four-agent mixed trace without API-side name fabrication.
+- Safety instructions prohibit invented closures, historical traffic fallbacks, dispatch claims, hospital acceptance claims, and bed-reservation claims.
+- Added 12 fully mocked tests for tools, agent topology, coordinator preservation, and author extraction.
+
+### Phase 5B Manual ADK Verification
+
+- Traffic prompt: passed; coordinator → response planning → traffic intelligence, with a deterministic route-matrix tool call.
+- Hospital prompt: passed; coordinator → response planning → hospital intelligence, with Google identity and unknown capacity clearly separated.
+- Mixed prompt: passed after explicit child hand-back sequencing; all four relevant authors appeared and the final answer denied confirmed actions/reservations.
+- Traffic-unavailable prompt: passed; delegated to Traffic Intelligence and identified only the implemented Haversine/fixed-speed fallback.
 ## Phase 4 Endpoints Consumed
 
 - `POST /api/ai/query` — routes requests to port 8001 ADK service coordinator
@@ -78,7 +95,7 @@ Run from `backend`:
 .venv\Scripts\python.exe -m pytest -v
 ```
 
-**Result:** `84 passed, 2 warnings in 1.78s` (full Phase 1–5A backend suite).
+**Result:** `96 passed, 6 warnings in 4.53s` (full Phase 1–5B backend suite).
 
 ### Frontend Build
 
@@ -127,4 +144,4 @@ npm run dev
 
 AI Command Center runs as a simulated controller. Session storage is active per-tab. High-latency agent requests require loading state transitions. No production Auth, BigQuery, Vertex AI, RAG, or computer vision is included.
 
-Phase 5A limitations: no frontend Google Maps, no Traffic/Hospital Intelligence ADK agents, no cross-process cache, and no automatic fuzzy mapping. Google Places does not provide live beds or verified ICU/admission capability; WHO and Google do not provide universal real-time hospital-bed availability. Real API-key quota, billing, API enablement, and live Mysuru responses require manual verification.
+Phase 5 limitations: no frontend Google Maps, no cross-process cache, and no automatic fuzzy mapping. Traffic/Hospital Intelligence agents are read-only explainers over deterministic backend APIs. Google Places does not provide live beds or verified ICU/admission capability; WHO and Google do not provide universal real-time hospital-bed availability. Real API-key quota, billing, API enablement, and live Mysuru responses require manual verification.

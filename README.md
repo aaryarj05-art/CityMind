@@ -9,6 +9,7 @@ CityMind is a decision-intelligence platform for city control rooms. It aggregat
 - **Phase 3**: Resource allocation planning, ranked candidate selection, hospital bed reservations, persisted simulated dispatch lifecycles, and demo resets.
 - **Phase 4**: Google ADK multi-agent orchestration, AI Command Center page, session continuity, agent trace pipelines, and grounded response indicators.
 - **Phase 5A**: Backend-only Google Routes and Places integration with deterministic fallbacks, verified hospital-capacity provenance, and mocked external-call tests.
+- **Phase 5B**: Nested ADK Traffic and Hospital Intelligence specialists that explain deterministic Phase 5A tool results.
 
 ## Setup
 
@@ -76,6 +77,20 @@ Google Places supplies identity, location, and business metadata—not bed avail
 
 Known limitations: the TTL cache is per process; the current CityMind hospital model has no verified ICU field; verified mappings require administrative curation; route-matrix compatibility is strongest when `incident_id` or `required_resource_type` is supplied; and real-key quota, billing, API enablement, and Mysuru production results still require manual verification.
 
+## Phase 5B ADK Intelligence Specialists
+
+The Response Planning Agent now owns two nested Gemini 2.5 Flash specialists:
+
+- `traffic_intelligence_agent` calls read-only CityMind tools for eligible-resource route comparison, a verified route for one resource, and nearest-versus-fastest decision summaries.
+- `hospital_intelligence_agent` calls read-only CityMind tools for Google hospital identity discovery, deterministic live ranking, and mapping/capacity provenance.
+
+The hierarchy is `city_operations_coordinator → response_planning_agent → traffic_intelligence_agent / hospital_intelligence_agent`. ADK event authors are passed through unchanged for the existing frontend trace. The specialists never calculate distances, ETAs, rankings, suitability, beds, or capacity; all operational values come from existing FastAPI endpoints.
+
+Traffic responses label Google Routes data as live or CityMind Haversine/fixed-speed data as fallback. Hospital responses keep Google identity separate from CityMind capacity, retain unknown values for unmatched places, and label simulated capacity. Recommendations never imply dispatch, hospital acceptance, or bed reservation.
+
+Manual `adk run citymind_agents` verification succeeded for traffic-only, hospital-only, mixed traffic/hospital planning, and Google-traffic-unavailable prompts. Verified traces included both three-agent specialist paths and the four-agent mixed path. The fallback answer explicitly rejected cached, last-known, and historical traffic claims.
+
+Known limitations: ADK delegation and wording remain model-driven; FastAPI must be running on port 8000; Gemini access is required for manual runs; and hospital mappings/capacity remain limited to the deterministic Phase 5A data available at query time.
 ---
 
 ## Phase 4 AI Command Center Features
@@ -106,4 +121,4 @@ Run backend tests from `backend`:
 .venv\Scripts\python.exe -m pytest -v
 ```
 
-All 84 tests pass (`84 passed, 2 warnings in 1.78s`). Google HTTP calls are fully mocked; the suite covers routing success/fallbacks, duration and congestion calculations, route-matrix eligibility/ranking/cache behavior, Places parsing/failures, hospital mapping/provenance/ranking, stale capacity, validation, and every preserved Phase 1–4 test.
+All 96 tests pass (`96 passed, 6 warnings in 4.53s`). Google HTTP calls are fully mocked; the suite covers routing success/fallbacks, duration and congestion calculations, route-matrix eligibility/ranking/cache behavior, Places parsing/failures, hospital mapping/provenance/ranking, stale capacity, validation, the Phase 5B tool/agent hierarchy, trace extraction, and every preserved Phase 1–4 test.
