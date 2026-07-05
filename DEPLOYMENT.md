@@ -160,3 +160,68 @@ Rollback restores code/configuration from the selected revision; it cannot recov
 - Process-local abuse controls, caches, and sessions reset on restart.
 - Live Google APIs and Gemini still depend on enabled APIs, billing, quotas, valid restricted credentials, and manual end-to-end verification.
 - Frontend deployment is intentionally out of scope until both backend services pass verification.
+
+## Frontend Cloud Run deployment
+
+The React/Vite frontend is packaged separately as `citymind-frontend`. Its multi-stage image builds with Node LTS and serves the generated static bundle from Nginx on port 8080. Nginx does not proxy API traffic; the browser calls the configured API URL directly.
+
+Vite embeds these browser-visible build values:
+
+- `VITE_API_BASE_URL`
+- `VITE_GOOGLE_CLIENT_ID`
+- `VITE_GOOGLE_MAPS_API_KEY`
+
+The OAuth client ID and browser-restricted Maps key are public browser identifiers, not server-side secrets. Never pass Gemini credentials, JWT secrets, the Maps server key, or the internal service token to the frontend build.
+
+### Build and push
+
+For a local production build using the deployed API:
+
+```cmd
+cd frontend
+set VITE_API_BASE_URL=https://citymind-api-440231657585.asia-south1.run.app/api
+npm run build
+```
+
+To build and push through Cloud Build, keep `VITE_GOOGLE_CLIENT_ID` and `VITE_GOOGLE_MAPS_API_KEY` in `frontend\.env`, then run:
+
+```cmd
+scripts\deploy-frontend.cmd https://citymind-api-440231657585.asia-south1.run.app
+```
+
+The script removes one trailing slash from the argument, appends `/api` exactly once, loads the two browser identifiers without echoing them, and submits `frontend/cloudbuild.yaml`. It builds and pushes:
+
+```text
+asia-south1-docker.pkg.dev/citymind-apac/citymind/citymind-frontend:latest
+```
+
+The script does not deploy. After reviewing the build, run the command it prints:
+
+```cmd
+gcloud run deploy citymind-frontend --image=asia-south1-docker.pkg.dev/citymind-apac/citymind/citymind-frontend:latest --region=asia-south1 --platform=managed --allow-unauthenticated --port=8080
+```
+
+Capture the resulting frontend URL:
+
+```cmd
+for /f "usebackq delims=" %i in (`gcloud run services describe citymind-frontend --project citymind-apac --region asia-south1 --format="value(status.url)"`) do set CITYMIND_FRONTEND_URL=%i
+```
+
+Update the API to allow that exact origin—never a wildcard—and wait for the new revision to become ready:
+
+```cmd
+gcloud run services update citymind-api --project citymind-apac --region asia-south1 --update-env-vars CITYMIND_ALLOWED_ORIGINS=%CITYMIND_FRONTEND_URL%
+```
+
+In the Google OAuth client configuration, add `%CITYMIND_FRONTEND_URL%` as an exact Authorized JavaScript origin. In the browser Maps key restrictions, allow only the deployed frontend referrer, such as `%CITYMIND_FRONTEND_URL%/*`, and restrict the key to Maps JavaScript API. Do not use the backend Maps server key in the browser.
+
+### Frontend production verification
+
+- `curl %CITYMIND_FRONTEND_URL%/healthz` returns HTTP 200 with `ok`.
+- Opening `%CITYMIND_FRONTEND_URL%/login` directly returns the SPA rather than an Nginx 404.
+- Responses include `Cross-Origin-Opener-Policy: same-origin-allow-popups`.
+- Google login accepts the exact deployed origin and protected routes still require a CityMind session.
+- Browser API requests target `https://citymind-api-440231657585.asia-south1.run.app/api` with no doubled `/api`.
+- Live Response loads the Maps JavaScript API with the referrer-restricted browser key.
+- AI Command Center, Security Operations, and other protected routes retain their JWT/RBAC behavior.
+- The built `dist` contains no localhost/loopback URLs or server-side secret names.
