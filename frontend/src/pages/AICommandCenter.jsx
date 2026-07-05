@@ -113,7 +113,6 @@ const AICommandCenter = () => {
       const payload = {
         message: text.trim(),
         session_id: sessionId,
-        user_id: 'control-room-officer',
       };
 
       const res = await aiAPI.query(payload);

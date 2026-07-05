@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 class AIQueryRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
     session_id: str | None = None
-    user_id: str = "control-room-officer"
+    user_id: str | None = None  # Deprecated and deliberately ignored; identity comes from the JWT.
 
 
 class AIQueryResponse(BaseModel):

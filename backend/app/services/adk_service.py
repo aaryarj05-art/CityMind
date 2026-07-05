@@ -72,6 +72,9 @@ async def query_citymind_agents(
     message: str,
     user_id: str,
     session_id: str | None = None,
+    role: str | None = None,
+    department: str | None = None,
+    citymind_session_id: str | None = None,
 ) -> dict[str, Any]:
     resolved_session_id = session_id or f"session-{uuid.uuid4()}"
 
@@ -89,6 +92,12 @@ async def query_citymind_agents(
                 "appName": ADK_APP_NAME,
                 "userId": user_id,
                 "sessionId": resolved_session_id,
+                "stateDelta": {
+                    "citymind_user_id": user_id,
+                    "citymind_role": role,
+                    "citymind_department": department,
+                    "citymind_session_id": citymind_session_id,
+                },
                 "newMessage": {
                     "role": "user",
                     "parts": [{"text": message}],

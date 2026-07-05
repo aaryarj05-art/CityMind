@@ -5,6 +5,10 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from citymind_agents.tools.internal_api import (
+    InternalServiceTokenMissing, internal_auth_error, internal_service_headers,
+)
+
 
 CITYMIND_API_BASE_URL = "http://127.0.0.1:8000/api"
 
@@ -28,10 +32,15 @@ def get_city_risk_summary() -> dict[str, Any]:
         or a structured error if the backend is unavailable.
     """
 
+    try:
+        headers = internal_service_headers()
+    except InternalServiceTokenMissing:
+        return internal_auth_error()
+
     url = f"{CITYMIND_API_BASE_URL}/risk/summary"
     request = Request(
         url,
-        headers={"Accept": "application/json"},
+        headers=headers,
         method="GET",
     )
 

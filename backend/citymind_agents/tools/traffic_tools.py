@@ -7,6 +7,10 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from citymind_agents.tools.internal_api import (
+    InternalServiceTokenMissing, internal_auth_error, internal_service_headers,
+)
+
 CITYMIND_API_BASE_URL = "http://127.0.0.1:8000/api"
 
 
@@ -18,10 +22,14 @@ class _ToolAPIError(Exception):
 
 def _api(path: str, method: str = "GET", body: dict | None = None) -> Any:
     data = json.dumps(body).encode("utf-8") if body is not None else None
+    try:
+        headers = internal_service_headers(json_content=body is not None)
+    except InternalServiceTokenMissing:
+        raise _ToolAPIError(internal_auth_error()) from None
     request = Request(
         f"{CITYMIND_API_BASE_URL}/{path.lstrip('/')}",
         data=data,
-        headers={"Accept": "application/json", "Content-Type": "application/json"},
+        headers=headers,
         method=method,
     )
     try:

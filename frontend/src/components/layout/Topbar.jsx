@@ -1,8 +1,10 @@
-import { Bell, MapPin, AlertTriangle, Siren, Activity, Rss, CheckCheck, Brain, Sparkles } from 'lucide-react';
+import { Bell, MapPin, AlertTriangle, Siren, Activity, Rss, CheckCheck, Brain, Sparkles, Clock3 } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { dashboardAPI, riskAPI, dispatchAPI } from '../../services/api';
+import { useAuth } from '../../auth/AuthContext';
 
 const Topbar = ({ title }) => {
+  const { remainingSeconds, sessionExpiring } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -308,6 +310,10 @@ const Topbar = ({ title }) => {
           <span>{currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
 
+        <div className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${sessionExpiring ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : 'border-navy-700 bg-navy-900 text-slate-400'}`} title="CityMind session time remaining">
+          <Clock3 className="w-3.5 h-3.5" />
+          <span className="text-[11px] font-medium">{sessionExpiring ? 'Session expires soon' : `${Math.max(1, Math.ceil(remainingSeconds / 60))}m session`}</span>
+        </div>
         {/* AI Status Indicator */}
         <div className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 bg-navy-900 rounded-full border border-navy-700">
           <Sparkles className="w-3.5 h-3.5 text-blue-400" />

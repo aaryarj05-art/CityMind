@@ -5,3 +5,5 @@ from .hospital import Hospital
 from .complaint import Complaint
 from .dispatch import Dispatch, DispatchAssignment
 from .hospital_external_mapping import HospitalExternalMapping
+
+from .auth import User, AuthenticationAudit

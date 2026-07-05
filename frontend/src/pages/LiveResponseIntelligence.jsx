@@ -65,19 +65,22 @@ const LiveResponseIntelligence = () => {
       setHospitalRoute(null);
       setSelectedResourceCode('');
       setSelectedHospitalId('');
+      const supportsHospitalRanking = ['Medical Emergency', 'Road Accident'].includes(selectedIncident.category);
       const [planResult, resourcesResult, hospitalResult] = await Promise.allSettled([
         allocationAPI.getPlan(selectedIncident.id),
         resourcesAPI.getAll(),
-        hospitalsAPI.rankLive({ incident_id: selectedIncident.id, limit: 10 }),
+        supportsHospitalRanking ? hospitalsAPI.rankLive(selectedIncident.id, 10) : Promise.resolve(null),
       ]);
       if (!active) return;
 
-      if (hospitalResult.status === 'fulfilled') {
+      if (!supportsHospitalRanking) {
+        setHospitalError('Live hospital ranking applies only to Medical Emergency and Road Accident incidents. No ranking request was sent.');
+      } else if (hospitalResult.status === 'fulfilled') {
         setHospitalRanking(hospitalResult.value.data);
         setSelectedHospitalId(hospitalResult.value.data.hospitals?.[0]?.google_place_id || '');
       } else {
         setHospitalError(hospitalResult.reason?.response?.status === 422
-          ? 'Live hospital ranking applies to medical transport incidents.'
+          ? 'The hospital ranking request was rejected as invalid. Select a valid medical incident and retry.'
           : apiMessage(hospitalResult.reason, 'Hospital ranking is unavailable.'));
       }
 

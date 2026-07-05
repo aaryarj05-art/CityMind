@@ -1,6 +1,6 @@
 # Current Status
 
-**Current Phase:** Phase 5C - Live Response Intelligence frontend complete with backend-only Routes/Places usage
+**Current Phase:** Phase 6A - authentication/RBAC complete; internal ADK read authentication and integration regressions fixed
 
 ## Completed
 
@@ -74,6 +74,30 @@
 - Safety instructions prohibit invented closures, historical traffic fallbacks, dispatch claims, hospital acceptance claims, and bed-reservation claims.
 - Added 12 fully mocked tests for tools, agent topology, coordinator preservation, and author extraction.
 
+### Phase 6A Integration Regression Fixes
+
+- Added constant-time `CITYMIND_INTERNAL_SERVICE_TOKEN` validation for explicitly approved read-only endpoints.
+- Updated every ADK risk, response-planning, traffic, and hospital HTTP client to send `X-CityMind-Internal-Token` and fail with a structured error when unavailable.
+- Internal access is limited to risk, incident, resource, allocation, dispatch-summary, traffic, hospital discovery, and hospital-ranking reads.
+- Dispatch creation/status/cancel/complete, settings, authentication, user management, and audit mutation remain user-JWT-only.
+- Added eight backend regression tests covering valid/invalid/missing internal credentials, mutation denial, user/Guest behavior, ADK tool headers, structured missing-token behavior, and popup headers.
+- Centralized live hospital payload construction as integer `{ incident_id, limit }`; non-medical selections no longer send rank-live requests.
+- Added two Node service tests for supported payloads and validation.
+- Added `same-origin-allow-popups` COOP headers to Vite dev/preview and FastAPI without weakening CORS.
+- Left legacy map markers unchanged because safe Advanced Marker migration requires a configured map ID; the warning is documented as non-blocking.
+### Phase 6A Authentication and RBAC
+
+- Added official Google Identity Services browser login and backend Google ID-token verification.
+- Added 15-minute CityMind HS256 JWT sessions with configured issuer/audience, stable Google subject, role, department, and unique session ID.
+- Added SQLite `users` and `authentication_audits` tables without storing credentials, JWTs, passwords, refresh tokens, or Google access tokens.
+- Added exact configuration-driven role mapping with safe Guest/Public defaults and no domain or first-user elevation.
+- Added one centralized matrix for nine roles and fourteen prototype permissions.
+- Added `/api/auth/google`, `/api/auth/me`, `/api/auth/logout`, and `/api/auth/session-status`.
+- Protected all operational APIs with reusable 401/403 dependencies while keeping health, local docs, and Google exchange public.
+- Added permission-specific dispatch, hospital-capacity, traffic, AI, and settings enforcement.
+- AI requests now derive CityMind user ID, role, department, and session context from the verified JWT; frontend identity fields are ignored.
+- Added session-only frontend storage, refresh verification, Axios bearer/401/403 handling, route guards, permission-aware navigation, identity UI, expiry warning, and logout.
+- Added 20 authentication/RBAC tests with mocked Google verification; tests never contact Google.
 ### Phase 5C Live Response Intelligence
 
 - Added lazy-loaded `/live-response` navigation and a responsive Google Maps workspace.
@@ -105,7 +129,7 @@ Run from `backend`:
 .venv\Scripts\python.exe -m pytest -v
 ```
 
-**Result:** `96 passed, 6 warnings in 5.83s` (full Phase 1-5C backend suite).
+**Result:** `124 passed, 6 warnings in 2.69s` (full Phase 1-6A regression suite).
 
 ### Frontend Build
 
@@ -115,7 +139,7 @@ Run from `frontend`:
 npm run build
 ```
 
-**Result:** Builds successfully with no errors (2491 modules transformed, 1.03s). Vite reports the existing large-chunk advisory.
+**Result:** Builds successfully with no errors (2497 modules transformed, 656ms). Vite reports the existing large-chunk advisory.
 
 ### Browser/API Proxy Verification
 
@@ -125,6 +149,12 @@ Tested `POST http://localhost:8000/api/ai/query` with port 8001 ADK service acti
 - Agents used matched: `["city_operations_coordinator", "risk_intelligence_agent"]`
 - Returned Kannada characters and structured headers correctly parsed
 
+### Phase 6A Browser Verification
+
+- `/login` rendered at desktop width without horizontal overflow.
+- The official Google-rendered Sign in with Google control loaded from Google Identity Services.
+- No account sign-in, credential exchange, dashboard restoration, role switching, or logout flow is claimed: the Google account chooser requires the approved user-controlled browser session.
+- Backend tests independently verify mocked successful exchange, Guest/DemoAdmin enforcement, refresh endpoints, logout audit, expiry, and credential/JWT rejection paths.
 ### Phase 5C Browser Verification
 
 - Google map, live incident/ambulance/hospital markers, and both selected route polylines rendered.
@@ -160,5 +190,7 @@ npm run dev
 ## Known Limitations
 
 AI Command Center runs as a simulated controller. Session storage is active per-tab. High-latency agent requests require loading state transitions. No production Auth, BigQuery, Vertex AI, RAG, or computer vision is included.
+
+Phase 6A limitations: JWT logout is local until expiry (no denylist), sessionStorage is an XSS-sensitive prototype choice, SQLite uses `create_all` rather than production migrations, and real sign-in browser flows require an approved user-controlled Google session. Production should use hardened HTTP-only secure cookies and token revocation/rotation.
 
 Phase 5 limitations: the browser map needs a separately restricted Maps JavaScript key; there is no cross-process cache or automatic fuzzy mapping. Traffic/Hospital Intelligence agents are read-only explainers over deterministic backend APIs. Google Places does not provide live beds or verified ICU/admission capability; WHO and Google do not provide universal real-time hospital-bed availability. Real API-key quota, billing, API enablement, and live Mysuru responses require manual verification.

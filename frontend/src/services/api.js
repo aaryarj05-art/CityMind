@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { clearSession, getAccessToken } from '../auth/authStorage.js';
+import { buildLiveHospitalRankingPayload } from './hospitalPayload.js';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
@@ -7,6 +9,36 @@ const api = axios.create({
   },
 });
 
+api.interceptors.request.use((config) => {
+  const token = getAccessToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error.response?.status;
+    const requestUrl = error.config?.url || '';
+    if (status === 401 && !requestUrl.includes('/auth/google')) {
+      clearSession();
+      window.dispatchEvent(new CustomEvent('citymind-auth-cleared', { detail: 'session' }));
+      if (window.location.pathname !== '/login') window.location.replace('/login?reason=session');
+    } else if (status === 403) {
+      window.dispatchEvent(new CustomEvent('citymind-access-denied', {
+        detail: error.response?.data?.detail || 'You do not have permission for that action.',
+      }));
+    }
+    return Promise.reject(error);
+  },
+);
+
+export const authAPI = {
+  google: (credential) => api.post('/auth/google', { credential }),
+  me: () => api.get('/auth/me'),
+  logout: () => api.post('/auth/logout'),
+  sessionStatus: () => api.get('/auth/session-status'),
+};
 export const dashboardAPI = {
   getSummary: () => api.get('/dashboard/summary'),
   getDashboardData: () => api.get('/dashboard'),
@@ -30,7 +62,11 @@ export const resourcesAPI = {
 export const hospitalsAPI = {
   getAll: () => api.get('/hospitals'),
   getNearby: (params) => api.get('/hospitals/nearby', { params, timeout: 15000 }),
-  rankLive: (payload) => api.post('/hospitals/rank-live', payload, { timeout: 30000 }),
+  rankLive: (incidentId, limit = 10) => api.post(
+    '/hospitals/rank-live',
+    buildLiveHospitalRankingPayload(incidentId, limit),
+    { timeout: 30000 },
+  ),
 };
 
 export const mapsAPI = {

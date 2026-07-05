@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config.allocation_rules import MEDICAL_INCIDENT_CATEGORIES
 from app.database import get_db
+from app.dependencies.auth import require_user_or_internal_service
 from app.models import Hospital, HospitalExternalMapping, Incident
 from app.schemas.hospitals_google import (
     LiveHospitalRankingRequest,
@@ -71,7 +72,7 @@ def _capacity_compatibility(hospital: Hospital, demand: int) -> bool:
     )
 
 
-@router.post("/rank-live", response_model=LiveHospitalRankingResponse)
+@router.post("/rank-live", response_model=LiveHospitalRankingResponse, dependencies=[Depends(require_user_or_internal_service("hospital_capacity.read"))])
 async def rank_live_hospitals(
     request: LiveHospitalRankingRequest,
     db: Session = Depends(get_db),

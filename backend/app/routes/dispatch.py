@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.config.allocation_rules import ACTIVE_DISPATCH_STATUSES
 from app.database import get_db
+from app.dependencies.auth import require_permission, require_user_or_internal_service
 from app.models import Dispatch, DispatchAssignment, Incident
 from app.schemas.dispatch import (AllocationPlan, DispatchCreate, DispatchResponse,
     DispatchStatusUpdate, DispatchSummary)
@@ -28,7 +29,7 @@ def read_allocation_plan(incident_id: int, db: Session = Depends(get_db)):
     return build_allocation_plan(db, incident)
 
 
-@dispatch_router.post("", response_model=DispatchResponse, status_code=201)
+@dispatch_router.post("", response_model=DispatchResponse, status_code=201, dependencies=[Depends(require_permission("dispatch.approve"))])
 def post_dispatch(request: DispatchCreate, db: Session = Depends(get_db)):
     try:
         return create_dispatch(db, request)
@@ -36,12 +37,12 @@ def post_dispatch(request: DispatchCreate, db: Session = Depends(get_db)):
         _raise(error)
 
 
-@dispatch_router.get("/summary", response_model=DispatchSummary)
+@dispatch_router.get("/summary", response_model=DispatchSummary, dependencies=[Depends(require_user_or_internal_service("dispatch.read"))])
 def read_dispatch_summary(db: Session = Depends(get_db)):
     return dispatch_summary(db)
 
 
-@dispatch_router.get("", response_model=list[DispatchResponse])
+@dispatch_router.get("", response_model=list[DispatchResponse], dependencies=[Depends(require_permission("dispatch.read"))])
 def read_dispatches(
     status: Literal["Planned", "Dispatched", "En Route", "On Scene", "Transporting", "Completed", "Cancelled"] | None = None,
     incident_id: int | None = Query(default=None, ge=1),
@@ -61,7 +62,7 @@ def read_dispatches(
     return [serialize_dispatch(db, item) for item in query.order_by(Dispatch.created_at.desc()).distinct().all()]
 
 
-@dispatch_router.get("/{dispatch_id}", response_model=DispatchResponse)
+@dispatch_router.get("/{dispatch_id}", response_model=DispatchResponse, dependencies=[Depends(require_permission("dispatch.read"))])
 def read_dispatch(dispatch_id: int, db: Session = Depends(get_db)):
     dispatch = db.query(Dispatch).filter(Dispatch.id == dispatch_id).first()
     if not dispatch:
@@ -69,7 +70,7 @@ def read_dispatch(dispatch_id: int, db: Session = Depends(get_db)):
     return serialize_dispatch(db, dispatch)
 
 
-@dispatch_router.patch("/{dispatch_id}/status", response_model=DispatchResponse)
+@dispatch_router.patch("/{dispatch_id}/status", response_model=DispatchResponse, dependencies=[Depends(require_permission("dispatch.approve"))])
 def patch_dispatch_status(dispatch_id: int, request: DispatchStatusUpdate, db: Session = Depends(get_db)):
     dispatch = db.query(Dispatch).filter(Dispatch.id == dispatch_id).first()
     if not dispatch:
@@ -80,7 +81,7 @@ def patch_dispatch_status(dispatch_id: int, request: DispatchStatusUpdate, db: S
         _raise(error)
 
 
-@dispatch_router.post("/{dispatch_id}/cancel", response_model=DispatchResponse)
+@dispatch_router.post("/{dispatch_id}/cancel", response_model=DispatchResponse, dependencies=[Depends(require_permission("dispatch.approve"))])
 def cancel_dispatch(dispatch_id: int, db: Session = Depends(get_db)):
     dispatch = db.query(Dispatch).filter(Dispatch.id == dispatch_id).first()
     if not dispatch:
@@ -91,7 +92,7 @@ def cancel_dispatch(dispatch_id: int, db: Session = Depends(get_db)):
         _raise(error)
 
 
-@dispatch_router.post("/{dispatch_id}/complete", response_model=DispatchResponse)
+@dispatch_router.post("/{dispatch_id}/complete", response_model=DispatchResponse, dependencies=[Depends(require_permission("dispatch.approve"))])
 def complete_dispatch(dispatch_id: int, db: Session = Depends(get_db)):
     dispatch = db.query(Dispatch).filter(Dispatch.id == dispatch_id).first()
     if not dispatch:
