@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
 from app.database import Base
-from datetime import datetime
+from datetime import datetime, timezone
 
 class Resource(Base):
     __tablename__ = "resources"
@@ -14,4 +14,4 @@ class Resource(Base):
     longitude = Column(Float)
     assigned_incident_id = Column(Integer, ForeignKey("incidents.id"), nullable=True)
     capacity = Column(String, nullable=True)
-    last_updated = Column(DateTime, default=datetime.utcnow)
+    last_updated = Column(DateTime, default=lambda: datetime.now(timezone.utc))

@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app.models import Area, Incident, Resource, Hospital, Complaint
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import random
 
 def seed_db(db: Session):
@@ -84,7 +84,7 @@ def seed_db(db: Session):
             latitude=area.latitude + random.uniform(-0.01, 0.01),
             longitude=area.longitude + random.uniform(-0.01, 0.01),
             responding_department=random.choice(["Police", "Traffic Police", "Fire Dept", "Medical"]),
-            reported_at=datetime.utcnow() - timedelta(minutes=random.randint(10, 120))
+            reported_at=datetime.now(timezone.utc) - timedelta(minutes=random.randint(10, 120))
         )
         db.add(inc)
         incidents.append(inc)

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
 from app.database import Base
-from datetime import datetime
+from datetime import datetime, timezone
 
 class Complaint(Base):
     __tablename__ = "complaints"
@@ -14,4 +14,4 @@ class Complaint(Base):
     latitude = Column(Float)
     longitude = Column(Float)
     status = Column(String)
-    submitted_at = Column(DateTime, default=datetime.utcnow)
+    submitted_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

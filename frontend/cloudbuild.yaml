@@ -1,0 +1,23 @@
+substitutions:
+  _API_BASE_URL: ""
+  _GOOGLE_CLIENT_ID: ""
+  _GOOGLE_MAPS_API_KEY: ""
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file
+      - Dockerfile
+      - --tag
+      - asia-south1-docker.pkg.dev/citymind-apac/citymind/citymind-frontend:latest
+      - --build-arg
+      - VITE_API_BASE_URL=${_API_BASE_URL}
+      - --build-arg
+      - VITE_GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}
+      - --build-arg
+      - VITE_GOOGLE_MAPS_API_KEY=${_GOOGLE_MAPS_API_KEY}
+      - .
+
+images:
+  - asia-south1-docker.pkg.dev/citymind-apac/citymind/citymind-frontend:latest

@@ -5,15 +5,17 @@ import LoadingState from '../components/common/LoadingState';
 import ErrorState from '../components/common/ErrorState';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
-import { resourcesAPI } from '../services/api';
+import DispatchDetailsDrawer from '../components/common/DispatchDetailsDrawer';
+import { resourcesAPI, dispatchAPI } from '../services/api';
 import { formatDate } from '../utils/formatters';
-import { Search, Filter, X, Shield, Truck, Siren, Settings } from 'lucide-react';
+import { Search, Filter, X, Shield, Truck, Siren, Settings, Eye } from 'lucide-react';
 
 const Resources = () => {
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedResource, setSelectedResource] = useState(null);
+  const [selectedDispatchId, setSelectedDispatchId] = useState(null);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -25,8 +27,32 @@ const Resources = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await resourcesAPI.getAll();
-      setResources(res.data);
+      const [resRes, dispRes] = await Promise.all([
+        resourcesAPI.getAll(),
+        dispatchAPI.getAll({ active_only: true })
+      ]);
+      
+      const resourcesData = resRes.data;
+      const activeDispatches = dispRes.data;
+      
+      const mapping = {};
+      activeDispatches.forEach(disp => {
+        disp.assignments.forEach(asg => {
+          mapping[asg.resource_id] = {
+            dispatch_code: disp.dispatch_code,
+            dispatch_id: disp.id,
+            role: asg.role,
+            status: asg.status
+          };
+        });
+      });
+      
+      const enrichedResources = resourcesData.map(res => ({
+        ...res,
+        active_dispatch: mapping[res.id] || null
+      }));
+      
+      setResources(enrichedResources);
     } catch (err) {
       setError(err.message || 'Failed to load resources');
     } finally {
@@ -171,6 +197,10 @@ const Resources = () => {
                         <p className="text-xs text-slate-400">
                           {res.area_id ? `Area: ${res.area_id}` : 'No Area Assigned'} 
                           {res.assigned_incident_id && ` • Incident: #${res.assigned_incident_id}`}
+                          {res.active_dispatch && ` • Dispatch: ${res.active_dispatch.dispatch_code} (${res.active_dispatch.role})`}
+                        </p>
+                        <p className="text-[10px] text-slate-500 mt-1 font-mono">
+                          Last change: {formatDate(res.last_updated)}
                         </p>
                       </div>
                     </div>
@@ -225,8 +255,36 @@ const Resources = () => {
                 <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Capacity</p>
                 <p className="text-slate-200 font-medium">{selectedResource.capacity || 'N/A'}</p>
               </div>
+
+              {/* Phase 3 Active Dispatch Details */}
+              {selectedResource.active_dispatch ? (
+                <>
+                  <div className="bg-navy-900 p-4 rounded-lg border border-navy-700 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Active Dispatch</p>
+                      <p className="text-blue-300 font-medium font-mono">{selectedResource.active_dispatch.dispatch_code}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDispatchId(selectedResource.active_dispatch.dispatch_id);
+                        setSelectedResource(null);
+                      }}
+                      className="p-1 bg-navy-800 hover:bg-navy-750 border border-navy-700 rounded text-slate-300 hover:text-white"
+                      title="View Dispatch details"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="bg-navy-900 p-4 rounded-lg border border-navy-700">
+                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Dispatch Role</p>
+                    <p className="text-slate-200 font-medium font-mono">{selectedResource.active_dispatch.role}</p>
+                  </div>
+                </>
+              ) : null}
+
               <div className="bg-navy-900 p-4 rounded-lg border border-navy-700 col-span-2">
-                <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Last Updated</p>
+                <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Last Status Change</p>
                 <p className="text-slate-200 font-medium">{formatDate(selectedResource.last_updated)}</p>
               </div>
             </div>
@@ -242,6 +300,14 @@ const Resources = () => {
           </div>
         )}
       </Modal>
+
+      {/* Dispatch Details Drawer */}
+      <DispatchDetailsDrawer
+        isOpen={!!selectedDispatchId}
+        onClose={() => setSelectedDispatchId(null)}
+        dispatchId={selectedDispatchId}
+        onTransitionSuccess={fetchResources}
+      />
     </PageContainer>
   );
 };

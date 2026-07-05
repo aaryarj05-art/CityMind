@@ -1,13 +1,24 @@
-import { Bell, MapPin, AlertTriangle, Siren, Activity, Rss, CheckCheck } from 'lucide-react';
+import { Bell, MapPin, AlertTriangle, Siren, Activity, Rss, CheckCheck, Brain, Sparkles, Clock3 } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { dashboardAPI } from '../../services/api';
+import { dashboardAPI, riskAPI, dispatchAPI } from '../../services/api';
+import { useAuth } from '../../auth/AuthContext';
 
 const Topbar = ({ title }) => {
+  const { remainingSeconds, sessionExpiring } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [readIds, setReadIds] = useState(new Set());
+  const [aiStatus, setAiStatus] = useState(() => sessionStorage.getItem('citymind_ai_status') || 'available');
   const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleStatusChange = (e) => {
+      setAiStatus(e.detail || 'available');
+    };
+    window.addEventListener('citymind-ai-status-change', handleStatusChange);
+    return () => window.removeEventListener('citymind-ai-status-change', handleStatusChange);
+  }, []);
 
   // Update clock every minute
   useEffect(() => {
@@ -39,81 +50,207 @@ const Topbar = ({ title }) => {
     return () => document.removeEventListener('keydown', handleEscape);
   }, [showNotifications]);
 
-  // Derive notifications from dashboard data
+  // Derive notifications from Phase 2 risk data + Phase 3 dispatch data + Phase 1 operational data
   const fetchNotifications = useCallback(async () => {
     try {
-      const res = await dashboardAPI.getDashboardData();
-      const data = res.data;
+      const [riskAreasRes, riskIncidentsRes, riskSummaryRes, dispRes, dashRes] = await Promise.allSettled([
+        riskAPI.getAreas(),
+        riskAPI.getIncidents(),
+        riskAPI.getSummary(),
+        dispatchAPI.getAll(),
+        dashboardAPI.getDashboardData()
+      ]);
+
       const derived = [];
       let notifId = 1;
 
-      // Critical zone alerts
-      if (data.priority_zones) {
-        data.priority_zones.forEach(zone => {
-          if (zone.status === 'Critical') {
+      // Phase 3 Dispatch Notifications (new dispatches, status changes, shortages, cancellations, completions)
+      if (dispRes.status === 'fulfilled') {
+        const dispatches = dispRes.value.data;
+        dispatches.forEach(disp => {
+          const createdAge = Date.now() - new Date(disp.created_at).getTime();
+          const updatedAge = Date.now() - new Date(disp.updated_at).getTime();
+
+          // New dispatch created alert (if created in last 1 hour)
+          if (createdAge < 3600000) {
             derived.push({
               id: notifId++,
-              title: 'Critical Zone Alert',
-              description: `${zone.name} has reached critical operational score (${zone.operational_score}/100).`,
+              title: 'New Dispatch Created',
+              description: `Simulated dispatch ${disp.dispatch_code} has been initiated for Incident #${disp.incident_id}.`,
+              severity: 'high',
+              area: `Incident #${disp.incident_id}`,
+              timestamp: disp.created_at,
+              icon: 'resource',
+            });
+          }
+
+          // Dispatch Cancelled (if updated in last 1 hour)
+          if (disp.status === 'Cancelled' && updatedAge < 3600000) {
+            derived.push({
+              id: notifId++,
+              title: 'Dispatch Cancelled',
+              description: `Simulated dispatch ${disp.dispatch_code} was cancelled. Responders released.`,
               severity: 'critical',
-              area: zone.name,
-              timestamp: zone.last_updated || new Date().toISOString(),
+              area: `Incident #${disp.incident_id}`,
+              timestamp: disp.updated_at,
+              icon: 'feed',
+            });
+          }
+
+          // Dispatch Completed (if updated in last 1 hour)
+          if (disp.status === 'Completed' && updatedAge < 3600000) {
+            derived.push({
+              id: notifId++,
+              title: 'Dispatch Completed',
+              description: `Simulated dispatch ${disp.dispatch_code} was completed. Target incident resolved.`,
+              severity: 'high',
+              area: `Incident #${disp.incident_id}`,
+              timestamp: disp.updated_at,
+              icon: 'zone',
+            });
+          }
+
+          // Dispatch Status Changed (if updated in last 1 hour, not Terminal)
+          if (!['Planned', 'Completed', 'Cancelled'].includes(disp.status) && updatedAge < 3600000) {
+            derived.push({
+              id: notifId++,
+              title: 'Dispatch Status Changed',
+              description: `Simulated dispatch ${disp.dispatch_code} is now ${disp.status}.`,
+              severity: 'high',
+              area: `Incident #${disp.incident_id}`,
+              timestamp: disp.updated_at,
+              icon: 'incident',
+            });
+          }
+
+          // Shortages alert in active dispatch
+          if (!['Completed', 'Cancelled'].includes(disp.status) && disp.shortages && Object.keys(disp.shortages).length > 0) {
+            derived.push({
+              id: notifId++,
+              title: 'Dispatch Shortage Alert',
+              description: `Simulated dispatch ${disp.dispatch_code} has active unfilled resource shortages.`,
+              severity: 'critical',
+              area: `Incident #${disp.incident_id}`,
+              timestamp: disp.updated_at,
+              icon: 'resource',
+            });
+          }
+
+          // Incomplete response plan in active dispatch
+          if (!['Completed', 'Cancelled'].includes(disp.status) && !disp.plan_complete) {
+            derived.push({
+              id: notifId++,
+              title: 'Incomplete Response Plan',
+              description: `Simulated dispatch ${disp.dispatch_code} plan is currently incomplete.`,
+              severity: 'high',
+              area: `Incident #${disp.incident_id}`,
+              timestamp: disp.updated_at,
               icon: 'zone',
             });
           }
         });
       }
 
-      // High-severity active incidents
-      if (data.recent_incidents) {
-        data.recent_incidents.forEach(inc => {
-          if (inc.severity === 'Critical' || inc.severity === 'High') {
+      // Phase 2 risk zone alerts — Critical and High risk areas
+      if (riskAreasRes.status === 'fulfilled') {
+        const riskAreas = riskAreasRes.value.data;
+        riskAreas.forEach(area => {
+          if (area.risk_level === 'Critical') {
             derived.push({
               id: notifId++,
-              title: `${inc.severity} Incident`,
-              description: `${inc.title} — ${inc.responding_department} responding.`,
-              severity: inc.severity === 'Critical' ? 'critical' : 'high',
-              area: `Area ${inc.area_id}`,
-              timestamp: inc.reported_at,
+              title: 'Critical Risk Zone',
+              description: `${area.area_name} has a critical risk score of ${area.risk_score.toFixed(1)}/100. ${area.explanation}`,
+              severity: 'critical',
+              area: area.area_name,
+              timestamp: area.last_calculated || new Date().toISOString(),
+              icon: 'zone',
+            });
+          } else if (area.risk_level === 'High') {
+            derived.push({
+              id: notifId++,
+              title: 'High Risk Zone',
+              description: `${area.area_name} has a high risk score of ${area.risk_score.toFixed(1)}/100. Top driver: ${area.top_contributing_factors?.[0]?.factor?.replace('_', ' ') || 'multiple factors'}.`,
+              severity: 'high',
+              area: area.area_name,
+              timestamp: area.last_calculated || new Date().toISOString(),
+              icon: 'zone',
+            });
+          }
+        });
+      }
+
+      // Phase 2 priority incidents — Immediate and Urgent only
+      if (riskIncidentsRes.status === 'fulfilled') {
+        const riskIncidents = riskIncidentsRes.value.data;
+        riskIncidents.forEach(inc => {
+          if (inc.priority_level === 'Immediate' || inc.priority_level === 'Urgent') {
+            derived.push({
+              id: notifId++,
+              title: `${inc.priority_level} Priority Incident`,
+              description: `${inc.title} — Priority score: ${inc.priority_score.toFixed(1)}/100. ${inc.recommended_response_urgency}.`,
+              severity: inc.priority_level === 'Immediate' ? 'critical' : 'high',
+              area: inc.area_name,
+              timestamp: inc.last_calculated || new Date().toISOString(),
               icon: 'incident',
             });
           }
         });
       }
 
-      // Feed delays
-      if (data.summary && data.summary.feed_statuses) {
-        Object.entries(data.summary.feed_statuses).forEach(([feed, status]) => {
-          if (status === 'Delayed' || status === 'Offline') {
-            derived.push({
-              id: notifId++,
-              title: `Feed ${status}`,
-              description: `${feed} is currently ${status.toLowerCase()}.`,
-              severity: status === 'Offline' ? 'critical' : 'high',
-              area: null,
-              timestamp: new Date().toISOString(),
-              icon: 'feed',
-            });
-          }
-        });
+      // Phase 2 city-wide summary alert
+      if (riskSummaryRes.status === 'fulfilled') {
+        const summary = riskSummaryRes.value.data;
+        if (summary.average_city_risk_score >= 60) {
+          derived.push({
+            id: notifId++,
+            title: 'City Risk Elevated',
+            description: `City-wide average risk is ${summary.average_city_risk_score.toFixed(1)}/100 with ${summary.critical_area_count} critical and ${summary.high_risk_area_count} high-risk zones.`,
+            severity: summary.average_city_risk_score >= 70 ? 'critical' : 'high',
+            area: null,
+            timestamp: summary.last_calculated || new Date().toISOString(),
+            icon: 'zone',
+          });
+        }
       }
 
-      // Resource shortages (if availability < 30%)
-      if (data.resource_summary) {
-        Object.entries(data.resource_summary).forEach(([key, val]) => {
-          if (val.total > 0 && val.available / val.total < 0.3) {
-            const label = key.charAt(0).toUpperCase() + key.slice(1);
-            derived.push({
-              id: notifId++,
-              title: 'Resource Shortage',
-              description: `Only ${val.available}/${val.total} ${label} units available.`,
-              severity: val.available === 0 ? 'critical' : 'high',
-              area: null,
-              timestamp: new Date().toISOString(),
-              icon: 'resource',
-            });
-          }
-        });
+      // Phase 1 operational alerts — Feed delays and Resource shortages
+      if (dashRes.status === 'fulfilled') {
+        const data = dashRes.value.data;
+
+        // Feed delays
+        if (data.summary && data.summary.feed_statuses) {
+          Object.entries(data.summary.feed_statuses).forEach(([feed, status]) => {
+            if (status === 'Delayed' || status === 'Offline') {
+              derived.push({
+                id: notifId++,
+                title: `Feed ${status}`,
+                description: `${feed} is currently ${status.toLowerCase()}.`,
+                severity: status === 'Offline' ? 'critical' : 'high',
+                area: null,
+                timestamp: new Date().toISOString(),
+                icon: 'feed',
+              });
+            }
+          });
+        }
+
+        // Resource shortages (if availability < 30%)
+        if (data.resource_summary) {
+          Object.entries(data.resource_summary).forEach(([key, val]) => {
+            if (val.total > 0 && val.available / val.total < 0.3) {
+              const label = key.charAt(0).toUpperCase() + key.slice(1);
+              derived.push({
+                id: notifId++,
+                title: 'Resource Shortage',
+                description: `Only ${val.available}/${val.total} ${label} units available.`,
+                severity: val.available === 0 ? 'critical' : 'high',
+                area: null,
+                timestamp: new Date().toISOString(),
+                icon: 'resource',
+              });
+            }
+          });
+        }
       }
 
       setNotifications(derived);
@@ -158,19 +295,42 @@ const Topbar = ({ title }) => {
   };
 
   return (
-    <div className="h-16 bg-navy-800 border-b border-navy-700 flex items-center justify-between px-8 sticky top-0 z-20">
-      <h2 className="text-xl font-semibold text-white">{title}</h2>
+    <div className="h-16 bg-navy-800 border-b border-navy-700 flex items-center justify-between gap-3 px-3 sm:px-5 lg:px-8 sticky top-0 z-20">
+      <h2 className="min-w-0 truncate text-base sm:text-xl font-semibold text-white">{title}</h2>
       
-      <div className="flex items-center space-x-6 text-sm">
-        <div className="flex items-center bg-navy-900 px-3 py-1.5 rounded-full border border-navy-700">
+      <div className="flex flex-shrink-0 items-center gap-1 sm:gap-3 lg:gap-6 text-sm">
+        <div className="hidden lg:flex items-center bg-navy-900 px-3 py-1.5 rounded-full border border-navy-700">
           <MapPin className="w-4 h-4 text-blue-400 mr-2" />
           <span className="text-slate-200 font-medium">Mysuru</span>
         </div>
         
-        <div className="flex items-center space-x-2 text-slate-400">
+        <div className="hidden xl:flex items-center space-x-2 text-slate-400">
           <span>{currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
           <span>•</span>
           <span>{currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
+
+        <div className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${sessionExpiring ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : 'border-navy-700 bg-navy-900 text-slate-400'}`} title="CityMind session time remaining">
+          <Clock3 className="w-3.5 h-3.5" />
+          <span className="text-[11px] font-medium">{sessionExpiring ? 'Session expires soon' : `${Math.max(1, Math.ceil(remainingSeconds / 60))}m session`}</span>
+        </div>
+        {/* AI Status Indicator */}
+        <div className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 bg-navy-900 rounded-full border border-navy-700">
+          <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+          <span className={`w-1.5 h-1.5 rounded-full ${
+            aiStatus === 'available' ? 'bg-emerald-400 animate-pulse' :
+            aiStatus === 'processing' ? 'bg-blue-400 animate-pulse' :
+            'bg-red-500'
+          }`} />
+          <span className={`hidden sm:inline text-[11px] font-medium ${
+            aiStatus === 'available' ? 'text-emerald-400' :
+            aiStatus === 'processing' ? 'text-blue-400' :
+            'text-red-400'
+          }`}>
+            {aiStatus === 'available' ? 'AI Available' :
+             aiStatus === 'processing' ? 'AI Processing' :
+             'AI Offline'}
+          </span>
         </div>
         
         {/* Notification Bell */}
@@ -192,7 +352,7 @@ const Topbar = ({ title }) => {
 
           {/* Notification Panel */}
           {showNotifications && (
-            <div className="absolute right-0 top-12 w-96 max-h-[28rem] bg-navy-800 border border-navy-700 rounded-xl shadow-2xl overflow-hidden flex flex-col z-50">
+            <div className="absolute right-0 top-12 w-[min(24rem,calc(100vw-6rem))] max-h-[28rem] bg-navy-800 border border-navy-700 rounded-xl shadow-2xl overflow-hidden flex flex-col z-50">
               <div className="p-4 border-b border-navy-700 flex items-center justify-between bg-navy-800/90 sticky top-0">
                 <h3 className="text-white font-semibold text-sm">Notifications</h3>
                 {unreadCount > 0 && (
