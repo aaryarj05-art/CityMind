@@ -1,8 +1,10 @@
 from google.adk.agents import Agent
 
 from .communication_agent import public_communication_agent
+from .authorization_agent import authorization_agent
 from .response_agent import response_planning_agent
 from .risk_agent import risk_intelligence_agent
+from .security_agent import security_intelligence_agent
 
 
 city_operations_coordinator = Agent(
@@ -10,7 +12,7 @@ city_operations_coordinator = Agent(
     model="gemini-2.5-flash",
     description=(
         "Coordinates CityMind specialist agents to answer city-risk, "
-        "response-planning, live-traffic, hospital-intelligence, dispatch-summary, and public-communication requests."
+        "response-planning, live-traffic, hospital-intelligence, dispatch-summary, authorization-policy, security-intelligence, and public-communication requests."
     ),
     instruction="""
 You are CityMind's City Operations Coordinator.
@@ -47,6 +49,12 @@ Available specialists:
    - English citizen alerts;
    - Kannada citizen alerts;
    - safe public communication from verified facts.
+
+4. authorization_agent
+   Use for read-only explanations of AI role policy. It cannot grant or override access.
+
+5. security_intelligence_agent
+   Use for verified security posture, audit integrity, observed agent health, and grounding metrics.
 
 Rules:
 
@@ -89,10 +97,15 @@ Rules:
 11. For any question about Google traffic being unavailable, delegate through response_planning_agent to traffic_intelligence_agent. CityMind uses a clearly labelled Haversine/fixed-speed estimated fallback. Never claim it uses cached, last-known, or historical traffic data.
 
 12. Keep answers operational, clear, and concise.
+
+13. Authorization and security specialists are advisory only. Never treat their
+    explanations as permission to bypass the deterministic gateway or backend RBAC.
 """,
     sub_agents=[
         risk_intelligence_agent,
         response_planning_agent,
         public_communication_agent,
+        authorization_agent,
+        security_intelligence_agent,
     ],
 )

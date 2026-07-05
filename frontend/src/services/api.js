@@ -24,7 +24,7 @@ api.interceptors.response.use(
       clearSession();
       window.dispatchEvent(new CustomEvent('citymind-auth-cleared', { detail: 'session' }));
       if (window.location.pathname !== '/login') window.location.replace('/login?reason=session');
-    } else if (status === 403) {
+    } else if (status === 403 && error.response?.data?.detail?.code !== 'AI_REQUEST_BLOCKED') {
       window.dispatchEvent(new CustomEvent('citymind-access-denied', {
         detail: error.response?.data?.detail || 'You do not have permission for that action.',
       }));
@@ -106,6 +106,15 @@ export const demoAPI = {
 
 export const aiAPI = {
   query: (payload) => api.post('/ai/query', payload),
+};
+
+export const securityAPI = {
+  getSummary: () => api.get('/security/summary'),
+  getEvents: (params) => api.get('/security/events', { params }),
+  getEvent: (eventId) => api.get('/security/events/' + eventId),
+  getAuditIntegrity: () => api.get('/security/audit-integrity'),
+  getAgentHealth: () => api.get('/security/agent-health'),
+  getGroundingMetrics: () => api.get('/security/grounding-metrics'),
 };
 
 export default api;

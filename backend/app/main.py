@@ -4,12 +4,13 @@ import os
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import inspect, text
 
 from app.database import Base, SessionLocal, engine
 from app.dependencies.auth import require_permission, require_user_or_internal_service
 from app.routes import (
     ai, areas, auth, complaints, dashboard, demo, dispatch, hospitals,
-    hospitals_google, incidents, maps, resources, risk,
+    hospitals_google, incidents, maps, resources, risk, security,
 )
 from app.seed.seed_data import seed_db
 
@@ -17,6 +18,25 @@ load_dotenv()
 
 # Importing routers loads all models before the lightweight SQLite migration.
 Base.metadata.create_all(bind=engine)
+
+
+def _migrate_security_event_columns():
+    """Additive SQLite migration for Phase 6B decision metadata."""
+    if engine.dialect.name != "sqlite" or "security_events" not in inspect(engine).get_table_names():
+        return
+    columns = {column["name"] for column in inspect(engine).get_columns("security_events")}
+    statements = []
+    if "model_version" not in columns:
+        statements.append("ALTER TABLE security_events ADD COLUMN model_version VARCHAR")
+    if "source_metadata_json" not in columns:
+        statements.append("ALTER TABLE security_events ADD COLUMN source_metadata_json TEXT NOT NULL DEFAULT '{}'")
+    if statements:
+        with engine.begin() as connection:
+            for statement in statements:
+                connection.execute(text(statement))
+
+
+_migrate_security_event_columns()
 
 
 def startup_event():
@@ -75,3 +95,4 @@ app.include_router(maps.router, prefix="/api", dependencies=[Depends(require_use
 app.include_router(hospitals_google.router, prefix="/api", dependencies=[Depends(require_user_or_internal_service("hospitals.read"))])
 app.include_router(hospitals.router, prefix="/api", dependencies=[Depends(require_permission("hospital_capacity.read"))])
 app.include_router(ai.router)
+app.include_router(security.router, prefix="/api")

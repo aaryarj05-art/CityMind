@@ -12,6 +12,7 @@ CityMind is a decision-intelligence platform for city control rooms. It aggregat
 - **Phase 5B**: Nested ADK Traffic and Hospital Intelligence specialists that explain deterministic Phase 5A tool results.
 - **Phase 5C**: Live Response Intelligence UI with a Google base map, traffic overlay, backend-routed ambulance and hospital comparisons, provenance, dashboard summary, and AI handoff.
 - **Phase 6A**: Google Identity Services authentication, backend-verified Google ID tokens, short-lived CityMind JWT sessions, deterministic RBAC, and authentication audit events.
+- **Phase 6B**: Deterministic AI prompt security and role policy, advisory authorization/security agents, hash-chained decision audits, and Security Operations telemetry.
 
 ## Setup
 
@@ -170,3 +171,22 @@ Run backend tests from `backend`:
 ```
 
 All 96 tests pass (`96 passed, 6 warnings in 5.83s`). Google HTTP calls are fully mocked; the suite covers routing success/fallbacks, duration and congestion calculations, route-matrix eligibility/ranking/cache behavior, Places parsing/failures, hospital mapping/provenance/ranking, stale capacity, validation, the Phase 5B tool/agent hierarchy, trace extraction, and every preserved Phase 1–4 test.
+## Phase 6B AI Security and Trust
+
+`POST /api/ai/query` now enforces the verified JWT permission and a deterministic, role-aware gateway before any ADK call. Fixed-weight rules detect instruction overrides, system-prompt extraction, jailbreak/role escalation, forced tools, authorization or human-approval bypass, fake operational claims, restricted data, SQL/path/API abuse, obfuscated suspicious instructions, excessive length, and repeated abuse. The score is the sum of unique matched-rule weights capped at 100; any match blocks, 1-69 is warning, and 70-100 is critical. This is transparent defense in depth, not perfect prompt-injection prevention.
+
+Configurable process-local controls use `CITYMIND_AI_MAX_PROMPT_LENGTH`, `CITYMIND_AI_REQUESTS_PER_MINUTE`, and `CITYMIND_SECURITY_BLOCK_THRESHOLD`. Unsafe requests are rejected and audited before ADK; rate violations return 429. The policy matrix always uses the role in the verified CityMind JWT, never a role asserted in prompt text.
+
+Security decisions use append-only, tamper-evident prototype SQLite audit logging. Each redacted, length-limited event stores a SHA-256 prompt hash and `SHA256(canonical_event_data + previous_hash)`. `/api/security/audit-integrity` deterministically verifies the chain. SQLite is not claimed to be immutable, and no security-event mutation API exists.
+
+Successful responses include a decision ID, actual observed ADK authors and function metadata, grounding state, deterministic High/Medium/Low assurance classification, limitations, model version, timestamp, previous hash, and integrity hash. Assurance is a rules-based provenance label, not a probability or invented confidence score. Unsupported dispatch, hospital-acceptance, and bed-reservation claims are withheld.
+
+The coordinator adds read-only `authorization_agent` and `security_intelligence_agent` specialists. They can explain configured policy or already-recorded telemetry; they cannot authenticate, grant roles, override RBAC/gateway decisions, mutate audit records, or execute operations. Internal tools use the existing read-only service token path.
+
+The permission-protected `/security-operations` page shows real summary counters, threat distribution, grounding/fallback metrics, audit integrity, observed agent health, filters, recent events, policy violations, decision IDs, and a redacted details drawer. The AI Command Center shows decision/audit metadata and renders gateway rejections as blocked cards, not Gemini answers. DemoAdmin receives insert-only Security Test Prompts.
+
+Dispatch creation and lifecycle changes remain separate authenticated human actions requiring `dispatch.approve`. Their audit events record the approving identity and role, timestamp, optional linked decision ID, and hash-chain integrity value. AI and internal-service credentials cannot perform these mutations.
+
+Verification: the complete backend suite passed (`145 passed, 5 warnings`); frontend service tests passed (`2 passed`); and the production frontend build completed (`2,500 modules transformed`) with only the existing large-chunk advisory.
+
+Known limitations: rate/abuse state is process-local; rule-based detection can have false positives and false negatives; the SQLite chain is tamper-evident rather than immutable; active-session count is reported unavailable because no accurate server-side session registry exists; agent health reflects observed audited activity, not autonomous monitoring; and manual Google login/ADK/Google API flows still require configured credentials and user-controlled sessions.

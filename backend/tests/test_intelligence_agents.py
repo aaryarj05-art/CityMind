@@ -212,7 +212,8 @@ def test_response_agent_contains_both_nested_specialists():
 
 def test_coordinator_preserves_original_top_level_agents():
     assert [agent.name for agent in city_operations_coordinator.sub_agents] == [
-        "risk_intelligence_agent", "response_planning_agent", "public_communication_agent"]
+        "risk_intelligence_agent", "response_planning_agent", "public_communication_agent",
+        "authorization_agent", "security_intelligence_agent"]
     assert city_operations_coordinator.sub_agents[1].sub_agents == response_planning_agent.sub_agents
 
 

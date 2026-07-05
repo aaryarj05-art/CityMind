@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Activity, AlertTriangle, BadgeCheck, BarChart3, LayoutDashboard, LogOut, MapPinned, Send, Settings, Sparkles, Users } from 'lucide-react';
+import { Activity, AlertTriangle, BadgeCheck, BarChart3, LayoutDashboard, LogOut, MapPinned, Send, Settings, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 
 const Sidebar = () => {
@@ -13,6 +13,7 @@ const Sidebar = () => {
     { name: 'Dispatches', path: '/dispatches', icon: Send, permission: 'dispatch.read' },
     { name: 'Resources', path: '/resources', icon: Users, permission: 'resources.read' },
     { name: 'Analytics', path: '/analytics', icon: BarChart3, permission: 'analytics.read' },
+    { name: 'Security Operations', path: '/security-operations', icon: ShieldCheck, permission: 'audit.read' },
     { name: 'Settings', path: '/settings', icon: Settings, permission: 'settings.manage' },
   ].filter((item) => hasPermission(item.permission));
 

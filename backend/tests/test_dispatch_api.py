@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.database import SessionLocal
 from app.main import app
-from app.models import Dispatch, Hospital, Incident, Resource
+from app.models import Dispatch, Hospital, Incident, Resource, SecurityEvent
 from app.services.dispatch_service import reset_demo
 
 counter = itertools.count(1)
@@ -74,11 +74,14 @@ def test_dispatch_creation_is_atomic_and_updates_states(phase3_data):
     hospital = make_hospital(); beds_before = hospital.available_beds
     with TestClient(app) as client:
         response = client.post("/api/dispatches", json={"incident_id": incident.id,
-            "selected_resource_ids": [ambulance.id, police.id], "selected_hospital_id": hospital.id})
+            "selected_resource_ids": [ambulance.id, police.id], "selected_hospital_id": hospital.id,
+            "decision_id": "CM-2026-TEST"})
         assert response.status_code == 201
         data = response.json()
         assert data["status"] == "Dispatched" and data["plan_complete"]
         assert len(data["assignments"]) == 2
+        approval = db.query(SecurityEvent).filter_by(action="dispatch_created", decision_id="CM-2026-TEST").one()
+        assert approval.role == "DemoAdmin" and len(approval.integrity_hash) == 64
     db.expire_all()
     assert db.get(Incident, incident.id).status == "Assigned"
     assert db.get(Resource, ambulance.id).status == "Dispatched"

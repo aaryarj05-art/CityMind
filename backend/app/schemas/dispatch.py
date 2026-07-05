@@ -58,6 +58,7 @@ class DispatchCreate(BaseModel):
     use_recommended_resources: bool = False
     selected_hospital_id: int | None = Field(default=None, ge=1)
     notes: str | None = Field(default=None, max_length=1000)
+    decision_id: str | None = Field(default=None, max_length=32)
 
     @model_validator(mode="after")
     def selection_is_explicit(self):
@@ -72,6 +73,7 @@ class DispatchCreate(BaseModel):
 
 class DispatchStatusUpdate(BaseModel):
     status: Literal["Planned", "Dispatched", "En Route", "On Scene", "Transporting", "Completed", "Cancelled"]
+    decision_id: str | None = Field(default=None, max_length=32)
 
 
 class DispatchAssignmentResponse(BaseModel):

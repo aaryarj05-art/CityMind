@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import Resources from './pages/Resources';
 import RiskZones from './pages/RiskZones';
 import Settings from './pages/Settings';
+import SecurityOperations from './pages/SecurityOperations';
 
 const LiveResponseIntelligence = lazy(() => import('./pages/LiveResponseIntelligence'));
 
@@ -35,6 +36,7 @@ function App() {
             <Route path="/resources" element={secured('resources.read', <Resources />)} />
             <Route path="/analytics" element={secured('analytics.read', <Analytics />)} />
             <Route path="/settings" element={secured('settings.manage', <Settings />)} />
+            <Route path="/security-operations" element={secured('audit.read', <SecurityOperations />)} />
             <Route path="/access-denied" element={<ProtectedRoute><AccessDenied /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

@@ -6,12 +6,15 @@ import AIChatMessage from '../components/ai/AIChatMessage';
 import AIQuickPrompts from '../components/ai/AIQuickPrompts';
 import AIStatusBanner from '../components/ai/AIStatusBanner';
 import AIContextPanel from '../components/ai/AIContextPanel';
+import SecurityTestPrompts from '../components/ai/SecurityTestPrompts';
+import { useAuth } from '../auth/AuthContext';
 import { aiAPI, dashboardAPI } from '../services/api';
 
 const SESSION_KEY = 'citymind_ai_session_id';
 
 const AICommandCenter = () => {
   const location = useLocation();
+  const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [sessionId, setSessionId] = useState(() => sessionStorage.getItem(SESSION_KEY) || null);
   const [loading, setLoading] = useState(false);
@@ -131,12 +134,25 @@ const AICommandCenter = () => {
         timestamp: new Date().toISOString(),
         agents_used: data.agents_used || [],
         grounded: data.grounded ?? false,
+        tools_used: data.tools_used || [],
+        decision_id: data.decision_id,
+        security: data.security,
+        audit: data.audit,
+        assurance_level: data.assurance_level,
+        assurance_reasons: data.assurance_reasons || [],
+        limitations: data.limitations || [],
       };
 
       setMessages(prev => [...prev, assistantMsg]);
       updateGlobalAIStatus('available');
     } catch (err) {
       const status = err.response?.status;
+      const detail = err.response?.data?.detail;
+      if ([400, 403, 429].includes(status) && detail && typeof detail === 'object' && ['AI_REQUEST_BLOCKED', 'AI_RATE_LIMITED'].includes(detail.code)) {
+        setMessages(prev => [...prev, { id: Date.now() + 1, role: 'blocked', content: detail.safe_message, timestamp: new Date().toISOString(), event_id: detail.event_id, threat_level: detail.threat_level, categories: detail.categories || [] }]);
+        updateGlobalAIStatus('available');
+        return;
+      }
       let errorContent;
 
       if (status === 503) {
@@ -348,6 +364,9 @@ const AICommandCenter = () => {
         {/* Right sidebar */}
         <div className="w-72 flex-shrink-0 space-y-4 overflow-y-auto">
           <AIContextPanel />
+          {user?.role === 'DemoAdmin' && (
+            <SecurityTestPrompts onInsert={(prompt) => { setInput(prompt); inputRef.current?.focus(); }} disabled={loading} />
+          )}
           <AIQuickPrompts
             onSelect={handleQuickPrompt}
             disabled={loading}

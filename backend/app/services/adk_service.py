@@ -68,6 +68,17 @@ def extract_agents(events: list[dict[str, Any]]) -> list[str]:
     return agents
 
 
+def extract_tools(events: list[dict[str, Any]]) -> list[str]:
+    tools: list[str] = []
+    for event in events:
+        for part in (event.get("content") or {}).get("parts") or []:
+            call = part.get("functionCall") or part.get("function_call") or {}
+            response = part.get("functionResponse") or part.get("function_response") or {}
+            name = call.get("name") or response.get("name")
+            if name and name not in tools:
+                tools.append(name)
+    return tools
+
 async def query_citymind_agents(
     message: str,
     user_id: str,
@@ -134,5 +145,6 @@ async def query_citymind_agents(
         "session_id": resolved_session_id,
         "response": extract_final_text(events),
         "agents_used": extract_agents(events),
+        "tools_used": extract_tools(events),
         "grounded": True,
     }

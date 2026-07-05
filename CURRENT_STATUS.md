@@ -1,6 +1,6 @@
 # Current Status
 
-**Current Phase:** Phase 6A - authentication/RBAC complete; internal ADK read authentication and integration regressions fixed
+**Current Phase:** Phase 6B - deterministic AI security, advisory trust agents, and Security Operations complete
 
 ## Completed
 
@@ -194,3 +194,29 @@ AI Command Center runs as a simulated controller. Session storage is active per-
 Phase 6A limitations: JWT logout is local until expiry (no denylist), sessionStorage is an XSS-sensitive prototype choice, SQLite uses `create_all` rather than production migrations, and real sign-in browser flows require an approved user-controlled Google session. Production should use hardened HTTP-only secure cookies and token revocation/rotation.
 
 Phase 5 limitations: the browser map needs a separately restricted Maps JavaScript key; there is no cross-process cache or automatic fuzzy mapping. Traffic/Hospital Intelligence agents are read-only explainers over deterministic backend APIs. Google Places does not provide live beds or verified ICU/admission capability; WHO and Google do not provide universal real-time hospital-bed availability. Real API-key quota, billing, API enablement, and live Mysuru responses require manual verification.
+### Phase 6B AI Security and Trust
+
+- Deterministic gateway and verified-JWT role policy execute before ADK; blocked prompts never enter the coordinator.
+- Configurable prompt length, per-user request rate, repeated-blocked, and identical-suspicious-prompt controls record real events; rate violations return 429.
+- Added `security_events` with redacted excerpts, SHA-256 prompt hashes, identity/context, decisions, real agent/tool metadata, assurance/limitations, and chained integrity hashes.
+- Added read-only `audit.read` security summary, paginated/filtered events, event detail, integrity verification, observed agent health, and grounding metrics endpoints.
+- Added advisory-only Authorization and Security Intelligence agents with narrow read-only tools; FastAPI RBAC and the gateway remain authoritative.
+- AI responses now expose decision ID, authorization/threat state, assurance, grounding, actual agents/tools, limitations, audit timestamp, model version, previous hash, and integrity hash.
+- Unsupported operational-action claims are deterministically withheld. Dispatch mutations remain authenticated human actions requiring `dispatch.approve` and create linked approval audit records.
+- Added `/security-operations`, real-data filters and event details, AI response security metadata, blocked-request cards, and DemoAdmin insert-only attack prompts.
+- Added 21 Phase 6B security tests, including tamper detection and proof that blocked requests do not call ADK.
+
+### Phase 6B Verification
+
+- Backend: `145 passed, 5 warnings in 3.18s` using the full `.venv\Scripts\python.exe -m pytest -v` suite.
+- Frontend: `2 passed` service tests.
+- Production build: successful, 2,500 modules transformed; existing large-chunk advisory only.
+- External/manual login, live Gemini, and live Google Maps/Routes/Places behavior is not claimed without configured credentials and user-controlled browser authentication.
+
+### Phase 6B Known Limitations
+
+- Transparent rules reduce common prompt attacks but do not guarantee prompt-injection prevention.
+- Abuse counters are process-local and reset on restart.
+- SQLite logging is append-only and tamper-evident at the application layer, not truly immutable.
+- Active sessions remain unavailable because CityMind has no accurate server-side session registry.
+- Agent health is derived from recorded decisions, not a synthetic monitoring feed; no fake security counters or confidence probabilities are used.
