@@ -8,9 +8,8 @@ from urllib.request import Request, urlopen
 from citymind_agents.tools.internal_api import (
     InternalServiceTokenMissing, internal_auth_error, internal_service_headers,
 )
+from citymind_agents.runtime_config import backend_api_base_url
 
-
-CITYMIND_API_BASE_URL = "http://127.0.0.1:8000/api"
 
 
 def get_incident_allocation_plan(incident_id: int) -> dict[str, Any]:
@@ -37,7 +36,7 @@ def get_incident_allocation_plan(incident_id: int) -> dict[str, Any]:
         return internal_auth_error()
 
     url = (
-        f"{CITYMIND_API_BASE_URL}/allocation/"
+        f"{backend_api_base_url()}/allocation/"
         f"incidents/{incident_id}/plan"
     )
 
@@ -120,7 +119,7 @@ def get_dispatch_summary() -> dict[str, Any]:
     except InternalServiceTokenMissing:
         return internal_auth_error()
 
-    url = f"{CITYMIND_API_BASE_URL}/dispatches/summary"
+    url = f"{backend_api_base_url()}/dispatches/summary"
     request = Request(
         url,
         headers=headers,

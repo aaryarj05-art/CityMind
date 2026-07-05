@@ -11,8 +11,7 @@ from urllib.request import Request, urlopen
 from citymind_agents.tools.internal_api import (
     InternalServiceTokenMissing, internal_auth_error, internal_service_headers,
 )
-
-CITYMIND_API_BASE_URL = "http://127.0.0.1:8000/api"
+from citymind_agents.runtime_config import backend_api_base_url
 
 
 class _ToolAPIError(Exception):
@@ -28,7 +27,7 @@ def _api(path: str, method: str = "GET", body: dict | None = None) -> Any:
     except InternalServiceTokenMissing:
         raise _ToolAPIError(internal_auth_error()) from None
     request = Request(
-        f"{CITYMIND_API_BASE_URL}/{path.lstrip('/')}",
+        f"{backend_api_base_url()}/{path.lstrip('/')}",
         data=data,
         headers=headers,
         method=method,

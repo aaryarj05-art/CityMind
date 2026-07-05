@@ -5,8 +5,9 @@ from typing import Any
 
 import httpx
 
+from app.runtime_config import adk_base_url
 
-ADK_BASE_URL = "http://127.0.0.1:8001"
+
 ADK_APP_NAME = "citymind_agents"
 
 
@@ -20,7 +21,7 @@ async def ensure_session(
     session_id: str,
 ) -> None:
     session_url = (
-        f"{ADK_BASE_URL}/apps/{ADK_APP_NAME}/users/"
+        f"{adk_base_url()}/apps/{ADK_APP_NAME}/users/"
         f"{user_id}/sessions/{session_id}"
     )
 
@@ -116,13 +117,13 @@ async def query_citymind_agents(
             }
 
             response = await client.post(
-                f"{ADK_BASE_URL}/run",
+                f"{adk_base_url()}/run",
                 json=payload,
             )
 
         except httpx.ConnectError as exc:
             raise ADKServiceError(
-                "Could not connect to the ADK server on port 8001."
+                "Could not connect to the configured ADK service."
             ) from exc
 
         except httpx.TimeoutException as exc:

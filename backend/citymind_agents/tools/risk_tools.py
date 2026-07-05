@@ -8,9 +8,8 @@ from urllib.request import Request, urlopen
 from citymind_agents.tools.internal_api import (
     InternalServiceTokenMissing, internal_auth_error, internal_service_headers,
 )
+from citymind_agents.runtime_config import backend_api_base_url
 
-
-CITYMIND_API_BASE_URL = "http://127.0.0.1:8000/api"
 
 
 def get_city_risk_summary() -> dict[str, Any]:
@@ -37,7 +36,7 @@ def get_city_risk_summary() -> dict[str, Any]:
     except InternalServiceTokenMissing:
         return internal_auth_error()
 
-    url = f"{CITYMIND_API_BASE_URL}/risk/summary"
+    url = f"{backend_api_base_url()}/risk/summary"
     request = Request(
         url,
         headers=headers,

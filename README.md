@@ -48,7 +48,7 @@ uvicorn app.main:app --reload --port 8000
 ```powershell
 cd backend
 .venv\Scripts\activate
-adk api_server --port 8001 .
+adk api_server --port 8001 agent_apps
 ```
 
 ### 3. Start React Frontend
@@ -190,3 +190,16 @@ Dispatch creation and lifecycle changes remain separate authenticated human acti
 Verification: the complete backend suite passed (`145 passed, 5 warnings`); frontend service tests passed (`2 passed`); and the production frontend build completed (`2,500 modules transformed`) with only the existing large-chunk advisory.
 
 Known limitations: rate/abuse state is process-local; rule-based detection can have false positives and false negatives; the SQLite chain is tamper-evident rather than immutable; active-session count is reported unavailable because no accurate server-side session registry exists; agent health reflects observed audited activity, not autonomous monitoring; and manual Google login/ADK/Google API flows still require configured credentials and user-controlled sessions.
+
+## Cloud Run readiness
+
+CityMind is prepared as two independently built Cloud Run services:
+
+- `citymind-api`: FastAPI, deterministic RBAC/security gateway, Google API bridges, seed bootstrap, and the prototype SQLite store.
+- `citymind-adk`: Google ADK with a dedicated `agent_apps` discovery root; `GET /list-apps` exposes only `citymind_agents`.
+
+The API health endpoint is `GET /api/health`. Production CORS is configured with `CITYMIND_ALLOWED_ORIGINS` as comma-separated exact origins; wildcard origins are rejected while credentialed requests are enabled. `Cross-Origin-Opener-Policy: same-origin-allow-popups` remains present for Google authentication.
+
+Cloud Run packaging and operator commands are documented in [DEPLOYMENT.md](DEPLOYMENT.md). The CMD-compatible scripts under `scripts` build through the correct Dockerfile and deploy only when an operator explicitly runs them. No deployment is performed by repository setup.
+
+Cloud Run local storage is ephemeral. Seed data is initialized when an API instance starts, but users, sessions, dispatches, capacity changes, and security/audit records can reset whenever an instance is replaced. A minimum instance count would not make SQLite durable. Cloud SQL or Firestore is the production persistence path.

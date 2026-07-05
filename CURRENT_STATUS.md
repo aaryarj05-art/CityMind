@@ -1,6 +1,6 @@
 # Current Status
 
-**Current Phase:** Phase 6B - deterministic AI security, advisory trust agents, and Security Operations complete
+**Current Phase:** Phase 6C - Cloud Run deployment preparation complete; deployment remains operator-controlled
 
 ## Completed
 
@@ -177,7 +177,7 @@ Backend ADK API:
 ```powershell
 cd backend
 .venv\Scripts\activate
-adk api_server --port 8001 .
+adk api_server --port 8001 agent_apps
 ```
 
 Frontend Dev:
@@ -220,3 +220,19 @@ Phase 5 limitations: the browser map needs a separately restricted Maps JavaScri
 - SQLite logging is append-only and tamper-evident at the application layer, not truly immutable.
 - Active sessions remain unavailable because CityMind has no accurate server-side session registry.
 - Agent health is derived from recorded decisions, not a synthetic monitoring feed; no fake security counters or confidence probabilities are used.
+
+## Phase 6C Cloud Run preparation
+
+- Added separate slim, non-root `citymind-api` and `citymind-adk` images with deterministic Dockerfiles and Cloud Build configs.
+- Added a dedicated ADK discovery root; `/list-apps` returns only `citymind_agents`.
+- API-to-ADK and ADK-to-API URLs now come from `ADK_BASE_URL` and `CITYMIND_BACKEND_BASE_URL`. Production rejects missing or loopback service URLs.
+- Production CORS now accepts comma-separated exact `CITYMIND_ALLOWED_ORIGINS`, rejects wildcards, and preserves the Google popup COOP header.
+- API startup validates required production configuration without printing values. ADK startup performs the equivalent safe validation.
+- Seed bootstrap uses an image-default `/tmp/citymind.db`; no local database or `.env` enters either image.
+- Added CMD deployment scripts, explicit Cloud Build files, deployment/rollback/logging documentation, and focused runtime/discovery tests.
+- No Cloud Run deployment is performed automatically.
+- Verification: exact requested backend suite `153 passed, 8 warnings`; frontend production build succeeded with 2,500 modules and the existing large-chunk advisory; the live in-process ADK `/list-apps` check returned only `["citymind_agents"]`; Docker was unavailable locally, so image builds were not claimed.
+
+### Phase 6C persistence limitation
+
+Cloud Run instance files are ephemeral. The prototype may lose users, sessions, dispatch state, capacity changes, and audit/security events on replacement or scale-out. A minimum instance count does not provide durability. Cloud SQL or Firestore remains required before production use.

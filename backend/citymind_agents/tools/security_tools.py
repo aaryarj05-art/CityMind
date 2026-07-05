@@ -4,8 +4,7 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from citymind_agents.tools.internal_api import InternalServiceTokenMissing, internal_auth_error, internal_service_headers
-
-CITYMIND_API_BASE_URL = "http://127.0.0.1:8000/api"
+from citymind_agents.runtime_config import backend_api_base_url
 
 
 def _read_security_endpoint(endpoint: str, source: str) -> dict[str, Any]:
@@ -13,7 +12,7 @@ def _read_security_endpoint(endpoint: str, source: str) -> dict[str, Any]:
         headers = internal_service_headers()
     except InternalServiceTokenMissing:
         return internal_auth_error()
-    request = Request(f"{CITYMIND_API_BASE_URL}{endpoint}", headers=headers, method="GET")
+    request = Request(f"{backend_api_base_url()}{endpoint}", headers=headers, method="GET")
     try:
         with urlopen(request, timeout=10) as response:
             return {"success": True, "source": source, "endpoint": f"/api{endpoint}",

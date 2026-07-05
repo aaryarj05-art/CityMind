@@ -1,6 +1,4 @@
 from datetime import datetime, timezone
-import os
-
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +11,7 @@ from app.routes import (
     hospitals_google, incidents, maps, resources, risk, security,
 )
 from app.seed.seed_data import seed_db
+from app.runtime_config import allowed_origins, environment_name, validate_api_production_config
 
 load_dotenv()
 
@@ -40,6 +39,7 @@ _migrate_security_event_columns()
 
 
 def startup_event():
+    validate_api_production_config()
     db = SessionLocal()
     try:
         seed_db(db)
@@ -54,10 +54,9 @@ app = FastAPI(
     on_startup=[startup_event],
 )
 
-FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_ORIGIN],
+    allow_origins=allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -75,7 +74,7 @@ async def add_popup_security_headers(request, call_next):
 def health_check():
     return {
         "status": "ok",
-        "environment": os.getenv("APP_ENV", "development"),
+        "environment": environment_name(),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
