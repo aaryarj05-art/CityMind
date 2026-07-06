@@ -122,6 +122,12 @@ async def query_ai(
 
     if not isinstance(result.get("response"), str) or not result["response"].strip():
         raise HTTPException(status_code=503, detail="ADK returned no usable response")
+    simulation_disclaimer = (
+        "Operational simulation seeded from public Mysuru facility directories. "
+        "Vehicle availability, staffing and hospital capacity are simulated for prototype demonstration."
+    )
+    if re.search(r"(?i)\b(resource|ambulance|police|fire|hospital|bed|capacity|staffing|vehicle)\b", result["response"]) and simulation_disclaimer not in result["response"]:
+        result["response"] = result["response"].rstrip() + "\n\nData limitation: " + simulation_disclaimer
     result.setdefault("agents_used", [])
     result.setdefault("tools_used", [])
     result["grounded"] = result.get("grounded") is True

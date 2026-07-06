@@ -110,14 +110,14 @@
 - Added responsive sidebar, topbar, and content behavior verified without horizontal overflow at 390px.
 ### Phase 5B Manual ADK Verification
 
-- Traffic prompt: passed; coordinator → response planning → traffic intelligence, with a deterministic route-matrix tool call.
-- Hospital prompt: passed; coordinator → response planning → hospital intelligence, with Google identity and unknown capacity clearly separated.
+- Traffic prompt: passed; coordinator ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ response planning ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ traffic intelligence, with a deterministic route-matrix tool call.
+- Hospital prompt: passed; coordinator ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ response planning ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ hospital intelligence, with Google identity and unknown capacity clearly separated.
 - Mixed prompt: passed after explicit child hand-back sequencing; all four relevant authors appeared and the final answer denied confirmed actions/reservations.
 - Traffic-unavailable prompt: passed; delegated to Traffic Intelligence and identified only the implemented Haversine/fixed-speed fallback.
 ## Phase 4 Endpoints Consumed
 
-- `POST /api/ai/query` — routes requests to port 8001 ADK service coordinator
-- `GET /api/risk/summary`, `GET /api/risk/areas`, `GET /api/risk/incidents`, `GET /api/dispatches/summary` — consumed by context panel
+- `POST /api/ai/query` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â routes requests to port 8001 ADK service coordinator
+- `GET /api/risk/summary`, `GET /api/risk/areas`, `GET /api/risk/incidents`, `GET /api/dispatches/summary` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â consumed by context panel
 
 ## Verification
 
@@ -236,3 +236,21 @@ Phase 5 limitations: the browser map needs a separately restricted Maps JavaScri
 ### Phase 6C persistence limitation
 
 Cloud Run instance files are ephemeral. The prototype may lose users, sessions, dispatch state, capacity changes, and audit/security events on replacement or scale-out. A minimum instance count does not provide durability. Cloud SQL or Firestore remains required before production use.
+
+## Final hackathon upgrade status (2026-07-06)
+
+Implemented and locally verified:
+
+- Deterministic Mysuru operational seed: 104 resources, 53 bases, 19 hospitals, and stable reset/version metadata.
+- Dynamic Overview plus resource, dispatch, risk, and hospital Analytics; visibility-aware 20-second refresh and mutation refresh.
+- Server-side resource pagination/filter/search/sort and audited status changes.
+- Judge open-access flag with verified login, backend-only DemoAdmin assignment, one banner, and preserved security controls.
+- Real ADK package deployment layout with no circular wrapper import; Gemini/Google key alias validation and bounded retry behavior.
+- Bounded eligible-resource traffic comparison, capacity-aware hospital ranking, and explicit simulation provenance.
+- Authenticated operational reset that preserves user, authentication-audit, and security-audit history.
+
+Local verification completed: 163 backend tests passed with 5 dependency deprecation warnings; 5 frontend service tests passed; lint exited successfully with non-blocking existing advisories; and the production frontend build succeeded with the existing large-chunk advisory. Local SQLite sampling measured Overview aggregation at 9.58 ms median / 10.98 ms p95 and allocation planning at 4.17 ms median / 5.24 ms p95 over 30 runs.
+
+Operational simulation seeded from public Mysuru facility directories. Vehicle availability, staffing and hospital capacity are simulated for prototype demonstration.
+
+Still requiring deployed-project manual verification: real Google login, live Maps/Routes/Places, Gemini/ADK answers, Cloud Run IAM/network behavior, and UI walkthrough at the deployed origin. No deployment was performed.

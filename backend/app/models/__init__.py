@@ -1,6 +1,6 @@
 from .area import Area
 from .incident import Incident
-from .resource import Resource
+from .resource import OperationalBase, Resource, SeedMetadata
 from .hospital import Hospital
 from .complaint import Complaint
 from .dispatch import Dispatch, DispatchAssignment

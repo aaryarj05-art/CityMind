@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import PageContainer from '../components/layout/PageContainer';
 import StatCard from '../components/dashboard/StatCard';
 import CityMap from '../components/dashboard/CityMap';
@@ -13,12 +13,13 @@ import DispatchDetailsDrawer from '../components/common/DispatchDetailsDrawer';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { riskAPI, areasAPI, dispatchAPI } from '../services/api';
 import { formatDate } from '../utils/formatters';
-import { AlertCircle, Map, Siren, Shield, Truck, Clock, ShieldAlert, Brain, Zap, Send, Eye, Users, CheckCircle2, Sparkles } from 'lucide-react';
+import { AlertCircle, Map, Siren, Shield, Truck, Clock, ShieldAlert, Brain, Zap, Send, Eye, CheckCircle2, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
-  const { data: p1Data, loading: p1Loading, error: p1Error, refetch: p1Refetch } = useDashboardData();
+  const { data: p1Data, loading: p1Loading, refreshing, stale, degraded, error: p1Error, refetch: p1Refetch } = useDashboardData();
   
+  const supplementaryInFlight = useRef(false);
   const [riskSummary, setRiskSummary] = useState(null);
   const [riskAreas, setRiskAreas] = useState([]);
   const [areasList, setAreasList] = useState([]);
@@ -44,6 +45,8 @@ const Dashboard = () => {
   }, []);
 
   const fetchDashboardData = async () => {
+    if (supplementaryInFlight.current) return;
+    supplementaryInFlight.current = true;
     setRiskLoading(true);
     setRiskError(null);
     setDispatchLoading(true);
@@ -65,6 +68,7 @@ const Dashboard = () => {
       setRiskError(err.message || 'Failed to load risk summary');
       setDispatchError(err.message || 'Failed to load dispatch summary');
     } finally {
+      supplementaryInFlight.current = false;
       setRiskLoading(false);
       setDispatchLoading(false);
     }
@@ -72,6 +76,9 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
+    const refreshSupplementary = () => fetchDashboardData();
+    window.addEventListener('citymind-dashboard-refreshed', refreshSupplementary);
+    return () => window.removeEventListener('citymind-dashboard-refreshed', refreshSupplementary);
   }, []);
 
   const handleRetryAll = () => {
@@ -128,28 +135,24 @@ const Dashboard = () => {
 
   return (
     <PageContainer title="City Overview">
-      {/* Phase 1 Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
-        <div className="col-span-1 lg:col-span-2 xl:col-span-1">
-          <StatCard title="Active Incidents" value={summary.active_incidents} icon={AlertCircle} color="orange" trend="up" trendValue="+2" />
-        </div>
-        <div className="col-span-1 lg:col-span-2 xl:col-span-1">
-          <StatCard title="Critical Zones" value={summary.critical_zones} icon={Map} color="red" />
-        </div>
-        <div className="col-span-1 lg:col-span-2 xl:col-span-1">
-          <StatCard title="Ambulances" value={summary.available_ambulances} icon={Siren} color="red" />
-        </div>
-        <div className="col-span-1 lg:col-span-2 xl:col-span-1">
-          <StatCard title="Police Units" value={summary.available_police} icon={Shield} color="blue" />
-        </div>
-        <div className="col-span-1 lg:col-span-2 xl:col-span-1">
-          <StatCard title="Fire Engines" value={summary.available_fire} icon={Truck} color="orange" />
-        </div>
-        <div className="col-span-1 lg:col-span-2 xl:col-span-1">
-          <StatCard title="Avg Response" value={summary.average_response_time} icon={Clock} color="purple" />
-        </div>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-navy-700 bg-navy-800 px-4 py-3 text-xs text-slate-400">
+        <span className={degraded ? 'text-amber-300' : stale ? 'text-orange-300' : 'text-emerald-300'}>
+          {refreshing ? 'Refreshing current operations…' : degraded ? 'Degraded data freshness' : stale ? 'Data is becoming stale' : 'Current database state'}
+        </span>
+        <span>Updated {formatDate(summary.last_updated)} · {summary.data_freshness_seconds}s old · Readiness {summary.readiness_percent.toFixed(1)}%</span>
       </div>
+      <div className="mb-5 rounded-xl border border-purple-500/20 bg-purple-500/5 p-4 text-xs text-purple-200">{summary.data_source_note}</div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <StatCard title="Active Incidents" value={summary.active_incidents} icon={AlertCircle} color="orange" />
+        <StatCard title="Critical Zones" value={summary.critical_zones} icon={Map} color="red" />
+        <Link to="/resources"><StatCard title="Deployable Units" value={summary.total_resources} icon={Siren} color="blue" /></Link>
+        <Link to="/resources"><StatCard title="Available Units" value={summary.available_resources} icon={Shield} color="green" /></Link>
+        <StatCard title="Active Dispatches" value={summary.active_dispatches} icon={Send} color="purple" />
+        <StatCard title="Hospitals Accepting" value={summary.hospitals_accepting_patients} icon={CheckCircle2} color="green" />
+        <StatCard title="Emergency Beds" value={summary.available_emergency_beds} icon={Truck} color="orange" />
+        <StatCard title="Avg Response" value={summary.average_response_time} icon={Clock} color="purple" />
+      </div>
       {/* Phase 2 Deterministic Risk Intelligence Section */}
       <div className="bg-navy-800 border border-navy-700 rounded-xl p-6 mb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-navy-700/60 pb-4 mb-6">
@@ -175,7 +178,7 @@ const Dashboard = () => {
             <p className="text-sm font-medium text-slate-300">Dynamic Risk Intelligence Unavailable</p>
             <p className="text-xs text-slate-500 mt-1 mb-4">{riskError}</p>
             <button 
-              onClick={fetchRiskData}
+              onClick={fetchDashboardData}
               className="px-4 py-1.5 bg-navy-700 hover:bg-navy-600 border border-navy-600 rounded-lg text-xs font-semibold text-white transition-colors"
             >
               Retry Connection
@@ -344,7 +347,7 @@ const Dashboard = () => {
                               <td className="px-4 py-3 font-semibold text-white font-mono">{disp.dispatch_code}</td>
                               <td className="px-4 py-3 text-slate-300">{disp.status}</td>
                               <td className="px-4 py-3 text-slate-300 font-mono">
-                                {disp.estimated_arrival_minutes ? `${disp.estimated_arrival_minutes.toFixed(1)} min` : '—'}
+                                {disp.estimated_arrival_minutes ? `${disp.estimated_arrival_minutes.toFixed(1)} min` : 'â€”'}
                               </td>
                               <td className="px-4 py-3 text-right">
                                 <button
@@ -441,7 +444,7 @@ const Dashboard = () => {
                                 <RiskLevelBadge level={zone.risk_level} />
                               </td>
                               <td className="px-6 py-4 text-slate-300 capitalize">
-                                {topFactor ? topFactor.factor.replace('_', ' ') : '—'}
+                                {topFactor ? topFactor.factor.replace('_', ' ') : 'â€”'}
                               </td>
                             </tr>
                           );
@@ -482,7 +485,7 @@ const Dashboard = () => {
             </div>
             <div>
               <h3 className="text-sm font-semibold text-white">CityMind AI Command Center</h3>
-              <p className="text-xs text-slate-400">Google ADK multi-agent orchestration — ask operational questions across all city systems.</p>
+              <p className="text-xs text-slate-400">Google ADK multi-agent orchestration â€” ask operational questions across all city systems.</p>
             </div>
           </div>
           <div className="flex items-center gap-3">

@@ -1,6 +1,6 @@
 from google.adk.agents import Agent
 
-from .tools.risk_tools import get_city_risk_summary
+from .tools.risk_tools import get_city_risk_summary, get_operational_overview
 
 
 risk_intelligence_agent = Agent(
@@ -25,7 +25,7 @@ Rules:
    - immediate-priority incidents;
    - the main city-wide risk driver.
 
-2. Treat tool output as the sole source of operational truth.
+2. Treat tool output as the sole source of operational truth. Use get_operational_overview for current incident, readiness, shortage, hospital-pressure, and provenance aggregates. Never request or enumerate the full resource inventory.
 
 3. Never invent or recalculate:
    - risk scores;
@@ -54,5 +54,5 @@ Primary concern:
 Recommended attention:
 Data source:
 """,
-    tools=[get_city_risk_summary],
+    tools=[get_city_risk_summary, get_operational_overview],
 )

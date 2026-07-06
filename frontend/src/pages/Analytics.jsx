@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
+import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, ScatterChart, Scatter, ZAxis, Label
 } from 'recharts';
 import PageContainer from '../components/layout/PageContainer';
 import LoadingState from '../components/common/LoadingState';
 import ErrorState from '../components/common/ErrorState';
-import { riskAPI } from '../services/api';
-import { AlertCircle, Target, Activity, Shield, Brain } from 'lucide-react';
+import EmptyState from '../components/common/EmptyState';
+import { dashboardAPI, riskAPI } from '../services/api';
+import { Brain } from 'lucide-react';
 
-const COLORS = ['#ef4444', '#f97316', '#eab308', '#10b981', '#3b82f6', '#8b5cf6', '#64748b'];
 
 const Analytics = () => {
-  const [data, setData] = useState({ summary: null, areas: [], incidents: [] });
+  const [data, setData] = useState({ summary: null, areas: [], incidents: [], operations: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -20,15 +20,17 @@ const Analytics = () => {
     setLoading(true);
     setError(null);
     try {
-      const [sumRes, areasRes, incRes] = await Promise.all([
+      const [sumRes, areasRes, incRes, operationsRes] = await Promise.all([
         riskAPI.getSummary(),
         riskAPI.getAreas(),
-        riskAPI.getIncidents()
+        riskAPI.getIncidents(),
+        dashboardAPI.getSummary()
       ]);
       setData({
         summary: sumRes.data,
         areas: areasRes.data,
-        incidents: incRes.data
+        incidents: incRes.data,
+        operations: operationsRes.data
       });
     } catch (err) {
       setError(err.message || 'Failed to load dynamic risk analytics from backend');
@@ -44,7 +46,7 @@ const Analytics = () => {
   // Compute stats metrics
   const stats = useMemo(() => {
     if (!data.summary || !data.areas.length) return null;
-    
+
     // Most common incident category
     const categoryCounts = data.incidents.reduce((acc, inc) => {
       // In Phase 2 incidents priority data we don't have the category directly on the root of the incident,
@@ -59,11 +61,11 @@ const Analytics = () => {
       else if (title.includes('fire')) category = 'Fire';
       else if (title.includes('medical emergency')) category = 'Medical Emergency';
       else if (title.includes('public disturbance')) category = 'Public Disturbance';
-      
+
       acc[category] = (acc[category] || 0) + 1;
       return acc;
     }, {});
-    
+
     let topCat = 'N/A';
     let maxCount = 0;
     Object.entries(categoryCounts).forEach(([cat, count]) => {
@@ -79,7 +81,7 @@ const Analytics = () => {
       highZonesCount: data.summary.high_risk_area_count,
       totalIncidents: data.incidents.length,
       topCategory: topCat,
-      topDriver: data.summary.top_contributing_factor_city_wide 
+      topDriver: data.summary.top_contributing_factor_city_wide
         ? data.summary.top_contributing_factor_city_wide.replace('_', ' ') : 'N/A'
     };
   }, [data]);
@@ -204,9 +206,38 @@ const Analytics = () => {
         </div>
       </div>
 
+      {/* Live operational analytics */}
+      {data.operations && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-navy-800 border border-navy-700 p-5 rounded-xl">
+              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Resource readiness</p>
+              <h3 className="text-3xl font-extrabold text-emerald-400">{data.operations.readiness_percent.toFixed(1)}%</h3>
+              <p className="text-xs text-slate-500">{data.operations.available_resources} of {data.operations.total_resources} available</p>
+            </div>
+            <div className="bg-navy-800 border border-navy-700 p-5 rounded-xl">
+              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Active dispatches</p>
+              <h3 className="text-3xl font-extrabold text-blue-400">{data.operations.active_dispatches}</h3>
+              <p className="text-xs text-slate-500">{data.operations.completed_dispatches} completed</p>
+            </div>
+            <div className="bg-navy-800 border border-navy-700 p-5 rounded-xl">
+              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Emergency beds</p>
+              <h3 className="text-3xl font-extrabold text-cyan-400">{data.operations.available_emergency_beds}</h3>
+              <p className="text-xs text-slate-500">{data.operations.available_icu_beds} ICU beds available</p>
+            </div>
+            <div className="bg-navy-800 border border-navy-700 p-5 rounded-xl">
+              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Hospitals accepting</p>
+              <h3 className="text-3xl font-extrabold text-violet-400">{data.operations.hospitals_accepting_patients}</h3>
+              <p className="text-xs text-slate-500">{data.operations.hospitals_on_diversion} on diversion</p>
+            </div>
+          </div>
+          <p className="text-xs text-slate-500 mb-6">{data.operations.data_source_note}</p>
+        </>
+      )}
+
       {/* Grid of 5 Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-8">
-        
+
         {/* Chart 1: Risk Distribution by Level */}
         <div className="bg-navy-800 border border-navy-700 rounded-xl p-5 flex flex-col justify-between">
           <h3 className="text-white font-semibold text-sm mb-6 uppercase tracking-wider">1. Risk Distribution by Level</h3>
@@ -227,9 +258,9 @@ const Analytics = () => {
                   ))}
                 </Pie>
                 <RechartsTooltip content={<CustomTooltip />} />
-                <Legend 
-                  verticalAlign="bottom" 
-                  height={36} 
+                <Legend
+                  verticalAlign="bottom"
+                  height={36}
                   wrapperStyle={{ fontSize: '11px', color: '#cbd5e1' }}
                 />
               </PieChart>
@@ -258,8 +289,8 @@ const Analytics = () => {
           <h3 className="text-white font-semibold text-sm mb-6 uppercase tracking-wider">3. Average Factor Contribution City-Wide</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart 
-                data={chartsData.avgFactorContributions} 
+              <BarChart
+                data={chartsData.avgFactorContributions}
                 layout="vertical"
                 margin={{ top: 10, right: 10, left: 10, bottom: 5 }}
               >
@@ -303,8 +334,8 @@ const Analytics = () => {
                   <Label value="Incident Count" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} fill="#94a3b8" fontSize={11} />
                 </YAxis>
                 <ZAxis type="number" dataKey="z" range={[60, 400]} />
-                <RechartsTooltip 
-                  cursor={{ strokeDasharray: '3 3' }} 
+                <RechartsTooltip
+                  cursor={{ strokeDasharray: '3 3' }}
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const item = payload[0].payload;

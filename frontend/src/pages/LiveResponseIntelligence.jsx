@@ -68,7 +68,7 @@ const LiveResponseIntelligence = () => {
       const supportsHospitalRanking = ['Medical Emergency', 'Road Accident'].includes(selectedIncident.category);
       const [planResult, resourcesResult, hospitalResult] = await Promise.allSettled([
         allocationAPI.getPlan(selectedIncident.id),
-        resourcesAPI.getAll(),
+        resourcesAPI.getPage({ category: 'Ambulance', status: 'Available', page_size: 100 }),
         supportsHospitalRanking ? hospitalsAPI.rankLive(selectedIncident.id, 10) : Promise.resolve(null),
       ]);
       if (!active) return;
@@ -96,8 +96,9 @@ const LiveResponseIntelligence = () => {
 
       const eligibleCodes = new Set((planResult.value.data.candidates || [])
         .filter((item) => item.eligible && item.resource_type === 'Ambulance')
+        .slice(0, 8)
         .map((item) => item.resource_code));
-      const eligible = resourcesResult.value.data.filter((resource) => eligibleCodes.has(resource.resource_code) && validCoordinates(resource));
+      const eligible = resourcesResult.value.data.items.filter((resource) => eligibleCodes.has(resource.resource_code) && validCoordinates(resource));
       if (!eligible.length) {
         setMatrix({ rankings: [], fallback_used: false, retrieved_at: new Date().toISOString(), warning: { code: 'no_eligible_resources', message: 'No eligible ambulances were confirmed by CityMind allocation rules.' } });
       } else {
@@ -199,6 +200,7 @@ const LiveResponseIntelligence = () => {
   return (
     <PageContainer title="Live Response Intelligence">
       <div className="space-y-6">
+        <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-4 text-xs text-purple-200">Operational simulation seeded from public Mysuru facility directories. Vehicle availability, staffing and hospital capacity are simulated for prototype demonstration.</div>
         <section className="bg-gradient-to-r from-blue-500/10 via-navy-800 to-purple-500/10 border border-blue-500/20 rounded-xl p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl"><p className="flex items-center gap-2 text-blue-300 text-xs font-semibold uppercase tracking-wider"><Navigation className="w-4 h-4" />Phase 5C decision surface</p><h1 className="text-2xl font-bold text-white mt-2">Traffic-aware response and hospital intelligence</h1><p className="text-sm text-slate-400 mt-2">Compare eligible ambulances, inspect real hospital identities, and review provenance before human approval.</p></div>

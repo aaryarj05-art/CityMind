@@ -50,6 +50,8 @@ class AllocationPlan(BaseModel):
     hospital_recommendations: list[HospitalCandidate]
     plan_complete: bool
     explanation: str
+    simulation_disclaimer: str = ""
+    provenance: dict[str, Any] = {}
 
 
 class DispatchCreate(BaseModel):
@@ -126,4 +128,13 @@ class DemoResetResponse(BaseModel):
     resources_restored: int
     incidents_restored: int
     hospital_beds_restored: int
+    police_bases: int = 21
+    fire_bases: int = 5
+    police_units: int = 50
+    ambulance_units: int = 28
+    fire_rescue_units: int = 14
+    municipal_utility_units: int = 12
+    total_deployable_units: int = 104
+    hospitals_restored: int = 19
+    seed_version: str = ""
     message: str

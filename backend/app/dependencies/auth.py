@@ -45,6 +45,9 @@ def get_current_user(
     db: Session = Depends(get_db),
 ) -> AuthenticatedUser:
     if credentials is None or credentials.scheme.lower() != "bearer":
+        client_ip, user_agent = _request_metadata(request)
+        record_auth_event(db, event_type="unauthenticated_access_denied", success=False,
+            reason_code="missing_bearer_token", client_ip=client_ip, user_agent=user_agent)
         raise _unauthorized()
     try:
         return authenticate_session(db, credentials.credentials)

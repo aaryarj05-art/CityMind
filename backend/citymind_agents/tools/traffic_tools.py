@@ -63,7 +63,7 @@ def compare_resource_routes_for_incident(incident_id: int) -> dict[str, Any]:
     """Rank only CityMind-eligible incident resources using the route matrix API."""
     try:
         incident, plan, resources = _incident_context(incident_id)
-        eligible_candidates = [item for item in plan.get("candidates", []) if item.get("eligible")]
+        eligible_candidates = [item for item in plan.get("candidates", []) if item.get("eligible")][:8]
         rejected = [{
             "resource_code": item.get("resource_code"),
             "resource_type": item.get("resource_type"),

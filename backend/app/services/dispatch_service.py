@@ -10,6 +10,7 @@ from app.models import Dispatch, DispatchAssignment, Hospital, Incident, Resourc
 from app.models.dispatch import utc_now
 from app.services.allocation_engine import build_allocation_plan, resource_eligibility
 from app.services.hospital_matcher import expected_patient_demand
+from app.seed.seed_data import reset_simulation_data
 
 
 class DispatchError(Exception):
@@ -197,36 +198,4 @@ def dispatch_summary(db: Session) -> dict:
 
 
 def reset_demo(db: Session) -> dict:
-    dispatches = db.query(Dispatch).order_by(Dispatch.id).all()
-    assignments = db.query(DispatchAssignment).all()
-    resources_restored = set()
-    incidents_restored = set()
-    beds_restored = 0
-    try:
-        for assignment in assignments:
-            resource = db.query(Resource).filter(Resource.id == assignment.resource_id).first()
-            if resource:
-                resource.status = assignment.previous_resource_status or "Available"
-                resource.assigned_incident_id = None
-                resources_restored.add(resource.id)
-        for dispatch in dispatches:
-            incident = db.query(Incident).filter(Incident.id == dispatch.incident_id).first()
-            if incident and incident.id not in incidents_restored:
-                incident.status = dispatch.previous_incident_status
-                incidents_restored.add(incident.id)
-            if dispatch.selected_hospital_id and dispatch.reserved_beds and not dispatch.hospital_beds_released:
-                hospital = db.query(Hospital).filter(Hospital.id == dispatch.selected_hospital_id).first()
-                if hospital:
-                    hospital.available_beds = min(hospital.total_beds, hospital.available_beds + dispatch.reserved_beds)
-                    beds_restored += dispatch.reserved_beds
-        assignment_count, dispatch_count = len(assignments), len(dispatches)
-        db.query(DispatchAssignment).delete(synchronize_session=False)
-        db.query(Dispatch).delete(synchronize_session=False)
-        db.commit()
-        return {"dispatches_removed": dispatch_count, "assignments_removed": assignment_count,
-            "resources_restored": len(resources_restored), "incidents_restored": len(incidents_restored),
-            "hospital_beds_restored": beds_restored,
-            "message": "Phase 3 simulated dispatch state was reset to its pre-dispatch baseline."}
-    except Exception:
-        db.rollback()
-        raise
+    return reset_simulation_data(db)

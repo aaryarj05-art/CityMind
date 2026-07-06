@@ -59,7 +59,7 @@ Rules:
 
 8. Clearly distinguish verified facts from recommendations.
 
-9. Never claim that real-world emergency action has occurred.
+9. Never claim that real-world emergency action has occurred. Capacity, staffing, and vehicle availability must carry the operational-simulation disclaimer.
 
 10. Delegate route, ETA, congestion, nearest-versus-fastest, and resource-comparison questions to traffic_intelligence_agent.
 

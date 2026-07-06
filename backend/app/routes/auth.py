@@ -18,6 +18,7 @@ from app.schemas.auth import (
 )
 from app.services import auth_service
 from app.services.auth_service import AuthenticatedUser
+from app.runtime_config import judge_open_access
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -62,6 +63,7 @@ def google_login(payload: GoogleCredentialRequest, request: Request, db: Session
         access_token=token,
         expires_in=expires_in,
         user=AuthUserResponse.model_validate(user),
+        judge_mode=judge_open_access(),
     )
 
 
@@ -70,6 +72,7 @@ def auth_me(current: AuthenticatedUser = Depends(get_current_user)):
     return CurrentUserResponse(
         user=AuthUserResponse.model_validate(current.user),
         permissions=permissions_for_role(current.user.role),
+        judge_mode=bool(current.claims.get("judge_mode", False)),
     )
 
 
@@ -101,4 +104,5 @@ def session_status(current: AuthenticatedUser = Depends(get_current_user)):
         remaining_seconds=remaining,
         role=current.user.role,
         department=current.user.department,
+        judge_mode=bool(current.claims.get("judge_mode", False)),
     )

@@ -37,6 +37,7 @@ class AuthenticationAudit(Base):
     email = Column(String, nullable=True)
     role = Column(String, nullable=True)
     success = Column(Boolean, nullable=False)
+    judge_mode = Column(Boolean, nullable=False, default=False)
     reason_code = Column(String, nullable=True)
     timestamp = Column(DateTime, nullable=False, default=utc_now, index=True)
     client_ip = Column(String, nullable=True)

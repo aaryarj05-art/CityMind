@@ -116,10 +116,11 @@ async def query_citymind_agents(
                 },
             }
 
-            response = await client.post(
-                f"{adk_base_url()}/run",
-                json=payload,
-            )
+            response = None
+            for _attempt in range(2):
+                response = await client.post(f"{adk_base_url()}/run", json=payload)
+                if response.status_code not in {502, 503, 504}:
+                    break
 
         except httpx.ConnectError as exc:
             raise ADKServiceError(
@@ -133,8 +134,7 @@ async def query_citymind_agents(
 
     if response.status_code != 200:
         raise ADKServiceError(
-            f"ADK returned HTTP {response.status_code}: "
-            f"{response.text}"
+            f"ADK returned HTTP {response.status_code}."
         )
 
     events = response.json()

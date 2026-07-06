@@ -7,7 +7,6 @@ class GoogleCredentialRequest(BaseModel):
 
 class AuthUserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-
     id: int
     name: str
     email: str
@@ -22,11 +21,13 @@ class GoogleLoginResponse(BaseModel):
     token_type: str = "bearer"
     expires_in: int
     user: AuthUserResponse
+    judge_mode: bool = False
 
 
 class CurrentUserResponse(BaseModel):
     user: AuthUserResponse
     permissions: list[str]
+    judge_mode: bool = False
 
 
 class LogoutResponse(BaseModel):
@@ -41,3 +42,4 @@ class SessionStatusResponse(BaseModel):
     remaining_seconds: int
     role: str
     department: str
+    judge_mode: bool = False

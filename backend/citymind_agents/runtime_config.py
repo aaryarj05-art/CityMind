@@ -30,10 +30,17 @@ def backend_api_base_url() -> str:
 
 
 def validate_adk_production_config() -> None:
+    gemini_key = os.getenv("GEMINI_API_KEY", "").strip() or os.getenv("GOOGLE_API_KEY", "").strip()
+    if gemini_key and not os.getenv("GOOGLE_API_KEY", "").strip():
+        # Google ADK/GenAI recognizes GOOGLE_API_KEY; copy in memory only and never log it.
+        os.environ["GOOGLE_API_KEY"] = gemini_key
     if environment_name() != "production":
         return
-    required = ("GEMINI_API_KEY", "CITYMIND_INTERNAL_SERVICE_TOKEN")
-    missing = [name for name in required if not os.getenv(name, "").strip()]
+    missing = []
+    if not gemini_key:
+        missing.append("GEMINI_API_KEY or GOOGLE_API_KEY")
+    if not os.getenv("CITYMIND_INTERNAL_SERVICE_TOKEN", "").strip():
+        missing.append("CITYMIND_INTERNAL_SERVICE_TOKEN")
     backend_api_base_url()
     if missing:
         raise RuntimeError("Missing required production configuration: " + ", ".join(missing))

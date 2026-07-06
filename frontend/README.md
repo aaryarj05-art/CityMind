@@ -1,16 +1,20 @@
-# React + Vite
+# CityMind frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React/Vite control-room UI for the CityMind FastAPI and Google ADK services.
 
-Currently, two official plugins are available:
+## Local setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Create `frontend/.env` from `.env.example` and set only browser-visible values: `VITE_API_BASE_URL`, `VITE_GOOGLE_CLIENT_ID`, and the referrer-restricted `VITE_GOOGLE_MAPS_API_KEY`. Never place server Maps, Gemini, JWT, or internal-service secrets in the frontend.
 
-## React Compiler
+```powershell
+npm install
+npm run dev
+npm test
+npm run build
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The Overview refreshes every 20 seconds while the tab is visible and immediately after successful mutations. Resource browsing is server-paginated. Judge mode is reported by the authenticated backend session and displayed once in the shared page shell; the browser cannot self-assign a role.
 
-## Expanding the Oxlint configuration
+Operational simulation seeded from public Mysuru facility directories. Vehicle availability, staffing and hospital capacity are simulated for prototype demonstration.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+Live Google and login flows require valid restricted credentials and manual browser verification. The production build may emit the existing large-chunk advisory.

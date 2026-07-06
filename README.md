@@ -65,10 +65,10 @@ Open: `http://localhost:5173`
 
 The backend adds these endpoints without replacing the existing CityMind hospital or allocation APIs:
 
-- `POST /api/maps/route` — traffic-aware route, distance, encoded polyline, and CityMind-derived congestion classification.
-- `POST /api/maps/route-matrix` — traffic-duration ranking after existing availability, assignment, active-dispatch, type, and (when `incident_id` is supplied) capacity eligibility checks.
-- `GET /api/hospitals/nearby` — Google hospital identity and location discovery.
-- `POST /api/hospitals/rank-live` — deterministic ranking for medical incidents using routing plus verified CityMind capacity mappings.
+- `POST /api/maps/route` Ã¢â‚¬â€ traffic-aware route, distance, encoded polyline, and CityMind-derived congestion classification.
+- `POST /api/maps/route-matrix` Ã¢â‚¬â€ traffic-duration ranking after existing availability, assignment, active-dispatch, type, and (when `incident_id` is supplied) capacity eligibility checks.
+- `GET /api/hospitals/nearby` Ã¢â‚¬â€ Google hospital identity and location discovery.
+- `POST /api/hospitals/rank-live` Ã¢â‚¬â€ deterministic ranking for medical incidents using routing plus verified CityMind capacity mappings.
 
 Google calls are server-side POST requests:
 
@@ -78,7 +78,7 @@ Google calls are server-side POST requests:
 
 Route and matrix results use a process-local, coordinate-rounded 90-second TTL cache. Missing credentials, timeouts, network failures, authorization/rate-limit/server errors, empty results, and malformed route data fall back to the existing Haversine/fixed-speed estimate and are explicitly marked `live_data: false`, `fallback_used: true`. Places failures return a structured HTTP 503 because hospital identities are not fabricated.
 
-Google Places supplies identity, location, and business metadata—not bed availability, ICU verification, or guaranteed emergency admission. Only a verified `hospital_external_mappings` row may attach existing CityMind operational capacity to a Google place. Unmatched places retain null capacity and `capacity_source: "unknown"`. Current CityMind seed capacity is explicitly identified as simulated. Neither Google nor WHO provides universal real-time hospital-bed availability.
+Google Places supplies identity, location, and business metadataÃ¢â‚¬â€not bed availability, ICU verification, or guaranteed emergency admission. Only a verified `hospital_external_mappings` row may attach existing CityMind operational capacity to a Google place. Unmatched places retain null capacity and `capacity_source: "unknown"`. Current CityMind seed capacity is explicitly identified as simulated. Neither Google nor WHO provides universal real-time hospital-bed availability.
 
 Known limitations: the TTL cache is per process; the current CityMind hospital model has no verified ICU field; verified mappings require administrative curation; route-matrix compatibility is strongest when `incident_id` or `required_resource_type` is supplied; and real-key quota, billing, API enablement, and Mysuru production results still require manual verification.
 
@@ -89,7 +89,7 @@ The Response Planning Agent now owns two nested Gemini 2.5 Flash specialists:
 - `traffic_intelligence_agent` calls read-only CityMind tools for eligible-resource route comparison, a verified route for one resource, and nearest-versus-fastest decision summaries.
 - `hospital_intelligence_agent` calls read-only CityMind tools for Google hospital identity discovery, deterministic live ranking, and mapping/capacity provenance.
 
-The hierarchy is `city_operations_coordinator → response_planning_agent → traffic_intelligence_agent / hospital_intelligence_agent`. ADK event authors are passed through unchanged for the existing frontend trace. The specialists never calculate distances, ETAs, rankings, suitability, beds, or capacity; all operational values come from existing FastAPI endpoints.
+The hierarchy is `city_operations_coordinator Ã¢â€ â€™ response_planning_agent Ã¢â€ â€™ traffic_intelligence_agent / hospital_intelligence_agent`. ADK event authors are passed through unchanged for the existing frontend trace. The specialists never calculate distances, ETAs, rankings, suitability, beds, or capacity; all operational values come from existing FastAPI endpoints.
 
 Traffic responses label Google Routes data as live or CityMind Haversine/fixed-speed data as fallback. Hospital responses keep Google identity separate from CityMind capacity, retain unknown values for unmatched places, and label simulated capacity. Recommendations never imply dispatch, hospital acceptance, or bed reservation.
 
@@ -149,10 +149,10 @@ All AI query requests are routed safely from the React frontend to `POST /api/ai
 
 ### 2. Agent Trace Timeline
 Displays the exact sequence of specialists coordinating to resolve the operational request:
-- `city_operations_coordinator` → City Operations Coordinator
-- `risk_intelligence_agent` → Risk Intelligence Agent
-- `response_planning_agent` → Response Planning Agent
-- `public_communication_agent` → Public Communication Agent
+- `city_operations_coordinator` Ã¢â€ â€™ City Operations Coordinator
+- `risk_intelligence_agent` Ã¢â€ â€™ Risk Intelligence Agent
+- `response_planning_agent` Ã¢â€ â€™ Response Planning Agent
+- `public_communication_agent` Ã¢â€ â€™ Public Communication Agent
 
 ### 3. Grounded response validation
 Responses returned with `grounded === true` display the **Verified CityMind Data** shield badge with a tooltip explaining that the response was formulated from verified local databases.
@@ -170,7 +170,7 @@ Run backend tests from `backend`:
 .venv\Scripts\python.exe -m pytest -v
 ```
 
-All 96 tests pass (`96 passed, 6 warnings in 5.83s`). Google HTTP calls are fully mocked; the suite covers routing success/fallbacks, duration and congestion calculations, route-matrix eligibility/ranking/cache behavior, Places parsing/failures, hospital mapping/provenance/ranking, stale capacity, validation, the Phase 5B tool/agent hierarchy, trace extraction, and every preserved Phase 1–4 test.
+All 96 tests pass (`96 passed, 6 warnings in 5.83s`). Google HTTP calls are fully mocked; the suite covers routing success/fallbacks, duration and congestion calculations, route-matrix eligibility/ranking/cache behavior, Places parsing/failures, hospital mapping/provenance/ranking, stale capacity, validation, the Phase 5B tool/agent hierarchy, trace extraction, and every preserved Phase 1Ã¢â‚¬â€œ4 test.
 ## Phase 6B AI Security and Trust
 
 `POST /api/ai/query` now enforces the verified JWT permission and a deterministic, role-aware gateway before any ADK call. Fixed-weight rules detect instruction overrides, system-prompt extraction, jailbreak/role escalation, forced tools, authorization or human-approval bypass, fake operational claims, restricted data, SQL/path/API abuse, obfuscated suspicious instructions, excessive length, and repeated abuse. The score is the sum of unique matched-rule weights capped at 100; any match blocks, 1-69 is warning, and 70-100 is critical. This is transparent defense in depth, not perfect prompt-injection prevention.
@@ -203,3 +203,17 @@ The API health endpoint is `GET /api/health`. Production CORS is configured with
 Cloud Run packaging and operator commands are documented in [DEPLOYMENT.md](DEPLOYMENT.md). The CMD-compatible scripts under `scripts` build through the correct Dockerfile and deploy only when an operator explicitly runs them. No deployment is performed by repository setup.
 
 Cloud Run local storage is ephemeral. Seed data is initialized when an API instance starts, but users, sessions, dispatches, capacity changes, and security/audit records can reset whenever an instance is replaced. A minimum instance count would not make SQLite durable. Cloud SQL or Firestore is the production persistence path.
+
+## Final hackathon realism upgrade
+
+The deterministic Mysuru simulation now seeds 104 deployable units: 50 police, 28 ambulance, 14 fire/rescue, and 12 municipal/utility units. They are assigned to 21 police, 12 ambulance, 5 fire/rescue, and 5 municipal bases, alongside 19 hospitals. Stable IDs, callsigns, coordinates, capabilities, crew status, readiness state, hospital capacity, and diversion state make resets repeatable.
+
+Overview and Analytics are database-derived. They report incident, resource readiness and shortage, dispatch lifecycle, area-risk, hospital-capacity, system status, and freshness metrics. Overview polls every 20 seconds only while visible, prevents overlapping requests, refreshes after mutations, and surfaces stale/degraded data. Resources uses server-side search, filters, sorting, and pagination. Live Response sends only a bounded eligible ambulance shortlist into traffic ranking.
+
+Set `CITYMIND_JUDGE_OPEN_ACCESS=true` only for the hackathon. Judges still complete verified Google authentication, after which the backend assigns `DemoAdmin`; a single persistent banner identifies the mode. Authentication, JWT verification, RBAC, prompt-injection defenses, audit logging, and dispatch approval remain enforced. Set the flag to `false` to restore exact-email role mapping.
+
+The authenticated demo reset restores only deterministic operational simulation data. Users, authentication audits, and security decision records are preserved.
+
+> Operational simulation seeded from public Mysuru facility directories. Vehicle availability, staffing and hospital capacity are simulated for prototype demonstration.
+
+The source directories establish plausible facility identity/location context, not live operational truth. Vehicle availability, crews, response readiness, bed counts, ICU availability, diversion status, traffic, and agent recommendations remain simulated or fallback-derived unless explicitly labeled live and verified. No screen constitutes an emergency dispatch, hospital acceptance, or official city instruction.

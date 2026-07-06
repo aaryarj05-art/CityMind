@@ -67,5 +67,5 @@ def test_health_is_public_and_preserves_popup_header():
 
 
 def test_adk_discovery_root_contains_only_citymind_agents():
-    agents_dir = Path(__file__).resolve().parents[1] / "agent_apps"
+    agents_dir = Path(__file__).resolve().parents[1] / "citymind_agents"
     assert AgentLoader(str(agents_dir)).list_agents() == ["citymind_agents"]

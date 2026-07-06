@@ -13,7 +13,8 @@ from google.auth.transport.requests import Request as GoogleAuthRequest
 from google.oauth2 import id_token
 from sqlalchemy.orm import Session
 
-from app.config.permissions import permissions_for_role, role_for_email
+from app.config.permissions import RoleAssignment, permissions_for_role, role_for_email
+from app.runtime_config import judge_open_access
 from app.models.auth import AuthenticationAudit, User
 
 CITYMIND_ISSUER = "citymind"
@@ -91,7 +92,8 @@ def verify_google_credential(credential: str) -> dict[str, Any]:
 
 
 def upsert_google_user(db: Session, claims: dict[str, Any]) -> User:
-    assignment = role_for_email(str(claims["email"]))
+    assignment = (RoleAssignment(role="DemoAdmin", department="Hackathon Judge")
+        if judge_open_access() else role_for_email(str(claims["email"])))
     user = db.query(User).filter(User.google_sub == str(claims["sub"])).first()
     now = datetime.now(timezone.utc)
     if user is None:
@@ -122,6 +124,7 @@ def create_session_token(user: User, now: datetime | None = None) -> tuple[str, 
         "role": user.role,
         "department": user.department,
         "email_verified": user.email_verified,
+        "judge_mode": judge_open_access(),
         "session_id": str(uuid.uuid4()),
         "iat": int(issued_at.timestamp()),
         "exp": int(expiry.timestamp()),
@@ -141,7 +144,7 @@ def decode_session_token(token: str) -> dict[str, Any]:
             audience=CITYMIND_AUDIENCE,
             options={"require": [
                 "sub", "google_sub", "email", "name", "role", "department",
-                "email_verified", "session_id", "iat", "exp", "iss", "aud",
+                "email_verified", "judge_mode", "session_id", "iat", "exp", "iss", "aud",
             ]},
         )
     except AuthConfigurationError:
@@ -194,6 +197,7 @@ def record_auth_event(
     role: str | None = None,
     client_ip: str | None = None,
     user_agent: str | None = None,
+    judge_mode: bool | None = None,
 ) -> None:
     event = AuthenticationAudit(
         event_type=event_type,
@@ -202,6 +206,7 @@ def record_auth_event(
         email=user.email if user else email,
         role=user.role if user else role,
         success=success,
+        judge_mode=judge_open_access() if judge_mode is None else judge_mode,
         reason_code=reason_code,
         client_ip=client_ip,
         user_agent=user_agent,

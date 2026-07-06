@@ -38,6 +38,42 @@ def _migrate_security_event_columns():
 _migrate_security_event_columns()
 
 
+def _migrate_operational_columns():
+    """Additive SQLite migration for simulation fields and judge audit metadata."""
+    if engine.dialect.name != "sqlite":
+        return
+    definitions = {
+        "resources": {
+            "category": "VARCHAR NOT NULL DEFAULT 'Municipal/Utility'", "unit_type": "VARCHAR NOT NULL DEFAULT 'Response Unit'", "base_id": "INTEGER",
+            "capabilities_json": "TEXT NOT NULL DEFAULT '[]'", "crew_capacity": "INTEGER NOT NULL DEFAULT 2", "response_radius_km": "FLOAT NOT NULL DEFAULT 12.0",
+            "priority_capabilities_json": "TEXT NOT NULL DEFAULT '[]'", "crew_available": "BOOLEAN NOT NULL DEFAULT 1", "simulated": "BOOLEAN NOT NULL DEFAULT 1",
+        },
+        "hospitals": {
+            "facility_category": "VARCHAR NOT NULL DEFAULT 'Hospital'", "ownership": "VARCHAR NOT NULL DEFAULT 'Public'", "emergency_capability": "BOOLEAN NOT NULL DEFAULT 1",
+            "trauma_capability": "BOOLEAN NOT NULL DEFAULT 0", "icu_capability": "BOOLEAN NOT NULL DEFAULT 0", "cardiac_capability": "BOOLEAN NOT NULL DEFAULT 0",
+            "paediatric_capability": "BOOLEAN NOT NULL DEFAULT 0", "maternity_capability": "BOOLEAN NOT NULL DEFAULT 0", "emergency_bed_capacity": "INTEGER NOT NULL DEFAULT 0",
+            "occupied_emergency_beds": "INTEGER NOT NULL DEFAULT 0", "icu_bed_capacity": "INTEGER NOT NULL DEFAULT 0", "available_icu_beds": "INTEGER NOT NULL DEFAULT 0",
+            "diversion_status": "VARCHAR NOT NULL DEFAULT 'Accepting'", "blood_bank_available": "BOOLEAN NOT NULL DEFAULT 0", "ambulance_base_support": "BOOLEAN NOT NULL DEFAULT 0",
+            "simulated": "BOOLEAN NOT NULL DEFAULT 1", "source_note": "TEXT",
+        },
+        "authentication_audits": {"judge_mode": "BOOLEAN NOT NULL DEFAULT 0"},
+    }
+    with engine.begin() as connection:
+        tables = set(inspect(engine).get_table_names())
+        for table_name, columns in definitions.items():
+            if table_name not in tables:
+                continue
+            existing = {column["name"] for column in inspect(engine).get_columns(table_name)}
+            for column_name, sql_type in columns.items():
+                if column_name not in existing:
+                    connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {sql_type}"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_resources_category_status ON resources(category, status)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_resources_base_status ON resources(base_id, status)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_hospitals_status_diversion ON hospitals(status, diversion_status)"))
+
+
+_migrate_operational_columns()
+
 def startup_event():
     validate_api_production_config()
     db = SessionLocal()

@@ -13,6 +13,10 @@ def environment_name() -> str:
     return (os.getenv("ENVIRONMENT") or os.getenv("APP_ENV") or "development").strip().lower()
 
 
+
+def judge_open_access() -> bool:
+    return os.getenv("CITYMIND_JUDGE_OPEN_ACCESS", "false").strip().lower() in {"1", "true", "yes", "on"}
+
 def is_production() -> bool:
     # ENVIRONMENT is the explicit deployment switch; APP_ENV remains a legacy feature gate.
     return os.getenv("ENVIRONMENT", "").strip().lower() == "production"

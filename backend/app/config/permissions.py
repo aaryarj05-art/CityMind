@@ -13,7 +13,7 @@ ROLES = (
 
 ALL_PERMISSIONS = frozenset({
     "dashboard.read", "risk.read", "incidents.read", "incidents.write",
-    "resources.read", "dispatch.read", "dispatch.approve", "hospitals.read",
+    "resources.read", "resources.write", "dispatch.read", "dispatch.approve", "hospitals.read",
     "hospital_capacity.read", "traffic.read", "analytics.read", "ai.query",
     "audit.read", "settings.manage",
 })
@@ -26,11 +26,11 @@ PERMISSION_MATRIX: dict[str, frozenset[str]] = {
     "Commissioner": (READ_PERMISSIONS - {"audit.read"}) | {"ai.query", "dispatch.approve"},
     "Police": frozenset({
         "dashboard.read", "risk.read", "incidents.read", "incidents.write",
-        "resources.read", "dispatch.read", "traffic.read", "ai.query",
+        "resources.read", "resources.write", "dispatch.read", "traffic.read", "ai.query",
     }),
     "Fire": frozenset({
         "dashboard.read", "risk.read", "incidents.read", "incidents.write",
-        "resources.read", "dispatch.read", "traffic.read", "ai.query",
+        "resources.read", "resources.write", "dispatch.read", "traffic.read", "ai.query",
     }),
     "Healthcare": frozenset({
         "dashboard.read", "incidents.read", "resources.read", "hospitals.read",

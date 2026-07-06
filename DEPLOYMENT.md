@@ -23,7 +23,7 @@ The backend directory is the build context. `.dockerignore` excludes environment
 - API: `uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1`
 - ADK: validation followed by `adk api_server --host 0.0.0.0 --port ${PORT:-8080} --no-reload --session_service_uri=memory:// --artifact_service_uri=memory:// agent_apps`
 
-The dedicated `agent_apps` directory contains only the `citymind_agents` wrapper, so `GET /list-apps` returns `["citymind_agents"]`; `app` and `tests` are not discoverable ADK applications. Local development uses `adk api_server --port 8001 agent_apps`.
+The ADK image copies the real `backend/citymind_agents` package directly to `/app/agent_apps/citymind_agents` and sets `PYTHONPATH=/app/agent_apps`. There is no same-name wrapper package and therefore no circular self-import. `GET /list-apps` returns `["citymind_agents"]`; `app` and `tests` are not copied into the discovery root. Local development may use `adk api_server --port 8001 .` from `backend`.
 
 One API worker avoids unsafe multi-process sharing of one SQLite file. The deployment script also uses concurrency 1 and should be limited to one instance during the prototype if consistent in-instance state is needed. None of these controls makes SQLite durable.
 
@@ -63,6 +63,7 @@ Regular environment variables:
 | Name | Value |
 |---|---|
 | `CITYMIND_SESSION_MINUTES` | `15` |
+| `CITYMIND_JUDGE_OPEN_ACCESS` | `true` for the hackathon deployment; `false` for normal email-mapped RBAC |
 | `ADK_BASE_URL` | deployed `citymind-adk` service URL |
 | `ENVIRONMENT` | `production` |
 | `CITYMIND_ALLOWED_ORIGINS` | exact deployed frontend origin |
@@ -107,7 +108,7 @@ After the frontend is deployed:
 
 ## Persistence warning
 
-The API image defaults to `sqlite:////tmp/citymind.db` and seeds a new database at instance startup. Cloud Run's filesystem is ephemeral. Users, auth audits, sessions represented in application state, dispatches, resource/capacity updates, and security/audit events may reset when an instance is stopped or replaced. Scale-out would create separate databases per instance. Minimum instances, concurrency 1, and max instances 1 are operational mitigations only�not durability.
+The API image defaults to `sqlite:////tmp/citymind.db` and seeds a new database at instance startup. Cloud Run's filesystem is ephemeral. Users, auth audits, sessions represented in application state, dispatches, resource/capacity updates, and security/audit events may reset when an instance is stopped or replaced. Scale-out would create separate databases per instance. Minimum instances, concurrency 1, and max instances 1 are operational mitigations onlyâ€”not durability.
 
 Use Cloud SQL (relational migration path) or Firestore (if the data model is intentionally redesigned) for production persistence. This change does not introduce either service.
 
@@ -207,7 +208,7 @@ Capture the resulting frontend URL:
 for /f "usebackq delims=" %i in (`gcloud run services describe citymind-frontend --project citymind-apac --region asia-south1 --format="value(status.url)"`) do set CITYMIND_FRONTEND_URL=%i
 ```
 
-Update the API to allow that exact origin�never a wildcard�and wait for the new revision to become ready:
+Update the API to allow that exact originâ€”never a wildcardâ€”and wait for the new revision to become ready:
 
 ```cmd
 gcloud run services update citymind-api --project citymind-apac --region asia-south1 --update-env-vars CITYMIND_ALLOWED_ORIGINS=%CITYMIND_FRONTEND_URL%
@@ -225,3 +226,21 @@ In the Google OAuth client configuration, add `%CITYMIND_FRONTEND_URL%` as an ex
 - Live Response loads the Maps JavaScript API with the referrer-restricted browser key.
 - AI Command Center, Security Operations, and other protected routes retain their JWT/RBAC behavior.
 - The built `dist` contains no localhost/loopback URLs or server-side secret names.
+
+## Final hackathon operator checklist
+
+The provided API deployment script enables `CITYMIND_JUDGE_OPEN_ACCESS=true`. A judge must still complete verified Google sign-in; the backend then assigns `DemoAdmin` and records `judge_mode` in the authentication audit. This flag does not bypass JWT validation, permission checks, the AI prompt-security gateway, dispatch approval boundaries, or audit logging. Set it to `false` after judging to restore exact-email role mapping.
+
+After deployment, verify in this order:
+
+1. `GET /api/health` reports healthy production configuration.
+2. ADK `GET /list-apps` returns exactly `["citymind_agents"]` and an AI query does not fail with a circular import.
+3. Sign in and confirm the persistent judge-access banner appears exactly once.
+4. Confirm Overview reports 104 deployable units and 19 hospitals, then update a resource or incident and verify the metrics refresh.
+5. Exercise Live Response, ensuring its route matrix receives only the bounded eligible shortlist.
+6. Run the authenticated demo reset and confirm deterministic counts are restored without deleting users or security/authentication audits.
+7. Confirm unauthenticated operational calls still return 401 and a prompt-injection test is blocked and audited.
+
+Operational simulation seeded from public Mysuru facility directories. Vehicle availability, staffing and hospital capacity are simulated for prototype demonstration.
+
+Do not claim live official staffing, vehicle availability, bed capacity, emergency admission, or dispatch execution. Google availability, Gemini responses, OAuth popup behavior, and Cloud Run cold-start behavior require credentialed manual verification in the deployed project.

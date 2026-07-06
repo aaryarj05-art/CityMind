@@ -87,3 +87,23 @@ def get_city_risk_summary() -> dict[str, Any]:
             "error_type": "unexpected_error",
             "message": str(exc),
         }
+
+def get_operational_overview() -> dict[str, Any]:
+    """Read current aggregate incidents, readiness, shortages, hospitals, and provenance."""
+    try:
+        headers = internal_service_headers()
+    except InternalServiceTokenMissing:
+        return internal_auth_error()
+    request = Request(f"{backend_api_base_url()}/dashboard/summary", headers=headers, method="GET")
+    try:
+        with urlopen(request, timeout=10) as response:
+            return {"success": True, "source": "CityMind dynamic Overview API",
+                    "endpoint": "/api/dashboard/summary", "data": json.loads(response.read().decode("utf-8"))}
+    except HTTPError as exc:
+        return {"success": False, "error_type": "http_error", "status_code": exc.code,
+                "message": f"CityMind API returned HTTP {exc.code}."}
+    except URLError as exc:
+        return {"success": False, "error_type": "connection_error",
+                "message": "Could not connect to the configured CityMind backend.", "details": str(exc.reason)}
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return {"success": False, "error_type": "invalid_json", "message": "CityMind returned invalid JSON."}

@@ -20,6 +20,7 @@ export const AuthProvider = ({ children }) => {
   const [expiry, setExpiry] = useState(getStoredExpiry);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [accessDenied, setAccessDenied] = useState('');
+  const [judgeMode, setJudgeMode] = useState(false);
 
   const clearLocalAuth = useCallback(() => {
     clearSession();
@@ -27,6 +28,7 @@ export const AuthProvider = ({ children }) => {
     setPermissions([]);
     setExpiry(0);
     setRemainingSeconds(0);
+    setJudgeMode(false);
   }, []);
 
   const verifySession = useCallback(async () => {
@@ -43,6 +45,7 @@ export const AuthProvider = ({ children }) => {
       setPermissions(meResponse.data.permissions || []);
       setExpiry(statusResponse.data.expiry || 0);
       setRemainingSeconds(statusResponse.data.remaining_seconds || 0);
+      setJudgeMode(Boolean(statusResponse.data.judge_mode || meResponse.data.judge_mode));
       updateStoredUser(nextUser);
       sessionStorage.setItem('citymind_session_expiry', String(statusResponse.data.expiry || 0));
       return true;
@@ -114,11 +117,12 @@ export const AuthProvider = ({ children }) => {
     authenticated: Boolean(user && getAccessToken()),
     remainingSeconds,
     sessionExpiring: remainingSeconds > 0 && remainingSeconds <= 120,
+    judgeMode,
     loginWithCredential,
     logout,
     hasPermission,
     verifySession,
-  }), [user, permissions, loading, remainingSeconds, loginWithCredential, logout, hasPermission, verifySession]);
+  }), [user, permissions, loading, remainingSeconds, judgeMode, loginWithCredential, logout, hasPermission, verifySession]);
 
   return (
     <AuthContext.Provider value={value}>

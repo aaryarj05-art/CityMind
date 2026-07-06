@@ -3,6 +3,7 @@
 from app.config.allocation_rules import (CAPACITY_LEVELS, MAX_ETA_FOR_SCORING_MINUTES,
     MEDICAL_INCIDENT_CATEGORIES, REQUIRED_CAPACITY, SUITABILITY_WEIGHTS, required_resources)
 from app.models import Area, Dispatch, DispatchAssignment, Resource
+from app.seed.seed_data import SIMULATION_DISCLAIMER
 from app.services.distance_service import has_valid_coordinates, haversine_km
 from app.services.eta_service import estimate_eta
 from app.services.hospital_matcher import rank_hospitals
@@ -11,7 +12,8 @@ from app.services.risk_engine import clamp, normalize_rainfall, normalize_traffi
 ACTIVE = ["Planned", "Dispatched", "En Route", "On Scene", "Transporting"]
 
 
-def resource_eligibility(db, resource, incident, required_type: str) -> tuple[bool, list[str]]:
+def resource_eligibility(db, resource, incident, required_type: str,
+                         active_resource_ids: set[int] | None = None) -> tuple[bool, list[str]]:
     reasons = []
     if resource.resource_type != required_type:
         reasons.append(f"Resource type does not match required {required_type}.")
@@ -24,15 +26,17 @@ def resource_eligibility(db, resource, incident, required_type: str) -> tuple[bo
     required_capacity = REQUIRED_CAPACITY.get(incident.category, "Standard")
     if CAPACITY_LEVELS.get(resource.capacity or "", 0) < CAPACITY_LEVELS[required_capacity]:
         reasons.append(f"Resource capacity does not meet required {required_capacity} level.")
-    active_assignment = (db.query(DispatchAssignment).join(Dispatch).filter(
-        DispatchAssignment.resource_id == resource.id, Dispatch.status.in_(ACTIVE)).first())
+    active_assignment = (resource.id in active_resource_ids) if active_resource_ids is not None else bool(
+        db.query(DispatchAssignment.id).join(Dispatch).filter(
+            DispatchAssignment.resource_id == resource.id, Dispatch.status.in_(ACTIVE)).first())
     if active_assignment:
         reasons.append("Resource belongs to another active dispatch.")
     return not reasons, reasons
 
 
-def score_resource(db, resource, incident, area, required_type: str) -> dict:
-    eligible, reasons = resource_eligibility(db, resource, incident, required_type)
+def score_resource(db, resource, incident, area, required_type: str,
+                   active_resource_ids: set[int] | None = None) -> dict:
+    eligible, reasons = resource_eligibility(db, resource, incident, required_type, active_resource_ids)
     valid_coords = has_valid_coordinates(resource.latitude, resource.longitude)
     if valid_coords:
         distance = haversine_km(incident.latitude, incident.longitude, resource.latitude, resource.longitude)
@@ -62,31 +66,31 @@ def score_resource(db, resource, incident, area, required_type: str) -> dict:
 
 
 def build_allocation_plan(db, incident) -> dict:
-    area = db.query(Area).filter(Area.id == incident.area_id).first()
+    area = db.get(Area, incident.area_id)
     if area is None:
         raise ValueError("Incident area not found")
     requirements = required_resources(incident.category, incident.severity)
-    resources = db.query(Resource).all()
+    resources = db.query(Resource).filter(Resource.resource_type.in_(requirements.keys())).all() if requirements else []
+    active_resource_ids = {row[0] for row in db.query(DispatchAssignment.resource_id).join(Dispatch).filter(
+        Dispatch.status.in_(ACTIVE)).distinct().all()}
     candidates, recommended, shortages = [], [], {}
     for resource_type, count in requirements.items():
-        ranked = [score_resource(db, resource, incident, area, resource_type)
-            for resource in resources if resource.resource_type == resource_type]
+        ranked = [score_resource(db, resource, incident, area, resource_type, active_resource_ids)
+                  for resource in resources if resource.resource_type == resource_type]
         ranked.sort(key=lambda item: (not item["eligible"], -item["suitability_score"], item["distance_km"], item["resource_id"]))
         eligible = [item for item in ranked if item["eligible"]]
-        for rank, item in enumerate(eligible, 1):
-            item["rank"] = rank
+        for rank, item in enumerate(eligible, 1): item["rank"] = rank
         chosen = eligible[:count]
-        recommended.extend(chosen)
-        candidates.extend(ranked)
-        if len(chosen) < count:
-            shortages[resource_type] = count - len(chosen)
+        recommended.extend(chosen); candidates.extend(ranked)
+        if len(chosen) < count: shortages[resource_type] = count - len(chosen)
     hospitals = rank_hospitals(db, incident, area) if incident.category in MEDICAL_INCIDENT_CATEGORIES else []
     complete = not shortages and bool(requirements)
     requirement_text = ", ".join(f"{count} {name}" for name, count in requirements.items()) or "no configured resources"
     return {"incident": {"id": incident.id, "title": incident.title, "category": incident.category,
         "severity": incident.severity, "status": incident.status, "area_id": incident.area_id},
-        "required_resources": requirements, "candidates": candidates,
-        "recommended_resources": recommended, "shortages": shortages,
-        "hospital_recommendations": hospitals, "plan_complete": complete,
+        "required_resources": requirements, "candidates": candidates, "recommended_resources": recommended,
+        "shortages": shortages, "hospital_recommendations": hospitals, "plan_complete": complete,
+        "simulation_disclaimer": SIMULATION_DISCLAIMER,
+        "provenance": {"availability": "simulated", "ranking": "deterministic", "route_shortlist_limit": 8},
         "explanation": f"The deterministic plan requires {requirement_text}. " +
             ("All requirements have eligible recommendations." if complete else "The plan is partial because one or more resource types are unavailable or unconfigured.")}
