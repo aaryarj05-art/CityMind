@@ -3,12 +3,13 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PORT=8080 \
-    PYTHONPATH=/app/agent_apps
+    PYTHONPATH=/app:/app/agent_apps
 WORKDIR /app
 RUN addgroup --system citymind && adduser --system --ingroup citymind citymind
 COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
 RUN mkdir -p /app/agent_apps
+COPY --chown=citymind:citymind app /app/app
 COPY --chown=citymind:citymind citymind_agents /app/agent_apps/citymind_agents
 USER citymind
 EXPOSE 8080

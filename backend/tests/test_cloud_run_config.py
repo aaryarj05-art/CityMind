@@ -1,5 +1,9 @@
 """Cloud Run runtime configuration and discovery regression tests."""
 
+import os
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -69,3 +73,54 @@ def test_health_is_public_and_preserves_popup_header():
 def test_adk_discovery_root_contains_only_citymind_agents():
     agents_dir = Path(__file__).resolve().parents[1] / "citymind_agents"
     assert AgentLoader(str(agents_dir)).list_agents() == ["citymind_agents"]
+
+
+def test_adk_container_layout_imports_all_agent_and_policy_modules(tmp_path):
+    backend = Path(__file__).resolve().parents[1]
+    app_root = tmp_path / "app"
+    agent_apps = tmp_path / "agent_apps"
+    shutil.copytree(backend / "app", app_root,
+                    ignore=shutil.ignore_patterns(".env", ".env.*", "__pycache__", "*.pyc", "*.db"))
+    shutil.copytree(backend / "citymind_agents", agent_apps / "citymind_agents",
+                    ignore=shutil.ignore_patterns(".env", ".env.*", "__pycache__", "*.pyc", "*.db"))
+    script = """
+import importlib
+import pkgutil
+import sys
+from pathlib import Path
+from app.services.ai_security_gateway import explain_role_policy
+from citymind_agents.agent import root_agent
+import citymind_agents
+
+for module in pkgutil.walk_packages(citymind_agents.__path__, citymind_agents.__name__ + '.'):
+    importlib.import_module(module.name)
+assert root_agent.name == 'city_operations_coordinator'
+assert explain_role_policy('DemoAdmin')['role'] == 'DemoAdmin'
+assert 'app.main' not in sys.modules
+assert not Path('citymind.db').exists()
+print('container-layout-imports-ok')
+"""
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join((str(tmp_path), str(agent_apps)))
+    env.pop("DATABASE_URL", None)
+    completed = subprocess.run(
+        [sys.executable, "-c", script], cwd=tmp_path, env=env,
+        capture_output=True, text=True, timeout=60, check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == "container-layout-imports-ok"
+    assert AgentLoader(str(agent_apps)).list_agents() == ["citymind_agents"]
+    assert not list(tmp_path.rglob(".env"))
+    assert not list(tmp_path.rglob("*.db"))
+
+
+def test_adk_dockerfile_copies_only_required_runtime_trees():
+    backend = Path(__file__).resolve().parents[1]
+    dockerfile = (backend / "Dockerfile.adk").read_text(encoding="utf-8")
+    dockerignore = (backend / ".dockerignore").read_text(encoding="utf-8")
+    assert "PYTHONPATH=/app:/app/agent_apps" in dockerfile
+    assert "COPY --chown=citymind:citymind app /app/app" in dockerfile
+    assert "COPY --chown=citymind:citymind citymind_agents /app/agent_apps/citymind_agents" in dockerfile
+    assert "COPY ." not in dockerfile
+    for excluded in (".env", ".env.*", "tests/", "*.db", "frontend/"):
+        assert excluded in dockerignore

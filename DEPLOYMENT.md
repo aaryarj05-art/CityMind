@@ -23,7 +23,7 @@ The backend directory is the build context. `.dockerignore` excludes environment
 - API: `uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1`
 - ADK: validation followed by `adk api_server --host 0.0.0.0 --port ${PORT:-8080} --no-reload --session_service_uri=memory:// --artifact_service_uri=memory:// agent_apps`
 
-The ADK image copies the real `backend/citymind_agents` package directly to `/app/agent_apps/citymind_agents` and sets `PYTHONPATH=/app/agent_apps`. There is no same-name wrapper package and therefore no circular self-import. `GET /list-apps` returns `["citymind_agents"]`; `app` and `tests` are not copied into the discovery root. Local development may use `adk api_server --port 8001 .` from `backend`.
+The ADK image copies `backend/app` to `/app/app` for the agent tools' one shared authorization-policy dependency, and copies the real `backend/citymind_agents` package directly to `/app/agent_apps/citymind_agents`. `PYTHONPATH=/app:/app/agent_apps` makes both importable while keeping only `citymind_agents` in the ADK discovery root. There is no same-name wrapper package and therefore no circular self-import. `GET /list-apps` returns `["citymind_agents"]`; tests, environment files, databases, and frontend files are not copied.
 
 One API worker avoids unsafe multi-process sharing of one SQLite file. The deployment script also uses concurrency 1 and should be limited to one instance during the prototype if consistent in-instance state is needed. None of these controls makes SQLite durable.
 
