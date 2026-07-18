@@ -178,6 +178,7 @@ def calculate_area_risk(
     hospitals: list[Hospital],
     resources: list[Resource],
     calculated_at: datetime | None = None,
+    weather: dict | None = None,
 ) -> dict:
     active_incidents = [
         incident
@@ -195,9 +196,29 @@ def calculate_area_risk(
     else:
         hospital_load = NEUTRAL_HOSPITAL_LOAD
 
+    rainfall_input = area.rainfall
+    weather_source = {
+        "rainfall_mm": area.rainfall,
+        "precipitation_mm": area.rainfall,
+        "source": "CityMind seeded area rainfall",
+        "live_data": False,
+        "fallback_used": False,
+        "warning": None,
+    }
+    if isinstance(weather, dict):
+        rainfall_input = weather.get("rainfall_mm", area.rainfall)
+        weather_source = {
+            "rainfall_mm": rainfall_input,
+            "precipitation_mm": weather.get("precipitation_mm", rainfall_input),
+            "source": weather.get("source", "CityMind seeded area rainfall"),
+            "live_data": weather.get("live_data") is True,
+            "fallback_used": weather.get("fallback_used") is True,
+            "warning": weather.get("warning"),
+        }
+
     factor_scores = {
         "traffic": normalize_traffic(area.traffic_level),
-        "rainfall": normalize_rainfall(area.rainfall),
+        "rainfall": normalize_rainfall(rainfall_input),
         "incidents": combine_incident_scores(
             [normalize_incident_severity(incident.severity) for incident in active_incidents]
         ),
@@ -217,6 +238,7 @@ def calculate_area_risk(
         "factor_scores": factor_scores,
         "factor_weights": dict(RISK_WEIGHTS),
         "weighted_contributions": contributions,
+        "factor_sources": {"rainfall": weather_source},
         "top_contributing_factors": top_factors,
         "explanation": build_explanation(area.name, risk_level, top_factors),
         "recommended_priority_level": recommended_area_priority(risk_level),
@@ -224,13 +246,25 @@ def calculate_area_risk(
     }
 
 
-def calculate_all_area_risks(db: Session, calculated_at: datetime | None = None) -> list[dict]:
+def calculate_all_area_risks(
+    db: Session,
+    calculated_at: datetime | None = None,
+    weather_by_area: dict[int, dict] | None = None,
+) -> list[dict]:
     calculated_at = calculated_at or utc_now()
     incidents = db.query(Incident).all()
     complaints = db.query(Complaint).all()
     hospitals = db.query(Hospital).all()
     resources = db.query(Resource).all()
     return [
-        calculate_area_risk(area, incidents, complaints, hospitals, resources, calculated_at)
+        calculate_area_risk(
+            area,
+            incidents,
+            complaints,
+            hospitals,
+            resources,
+            calculated_at,
+            weather_by_area.get(area.id) if weather_by_area else None,
+        )
         for area in db.query(Area).all()
     ]

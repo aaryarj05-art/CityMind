@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -9,6 +9,15 @@ class ContributingFactor(BaseModel):
     score: float = Field(ge=0, le=100)
     weight: float = Field(ge=0, le=1)
     contribution: float = Field(ge=0, le=100)
+
+
+class FactorSource(BaseModel):
+    rainfall_mm: float
+    precipitation_mm: float
+    source: str
+    live_data: bool
+    fallback_used: bool
+    warning: Dict[str, Any] | None = None
 
 
 class AreaRisk(BaseModel):
@@ -22,6 +31,7 @@ class AreaRisk(BaseModel):
     factor_scores: Dict[str, float]
     factor_weights: Dict[str, float]
     weighted_contributions: Dict[str, float]
+    factor_sources: Dict[str, FactorSource]
     top_contributing_factors: List[ContributingFactor]
     explanation: str
     recommended_priority_level: str
