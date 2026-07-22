@@ -207,7 +207,8 @@ def test_specialist_agent_configuration():
 def test_response_agent_contains_both_nested_specialists():
     assert [agent.name for agent in response_planning_agent.sub_agents] == [
         "traffic_intelligence_agent", "hospital_intelligence_agent"]
-    assert "Do not convert recommendations into confirmed dispatch actions" in response_planning_agent.instruction
+    assert "Prefer direct tool usage over delegation" in response_planning_agent.instruction
+    assert "Do NOT delegate to both traffic_intelligence_agent and hospital_intelligence_agent" in response_planning_agent.instruction
 
 
 def test_coordinator_preserves_original_top_level_agents():
