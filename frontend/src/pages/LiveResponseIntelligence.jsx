@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Brain, Clock3, MapPinned, Navigation, RefreshCw, Route, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Brain, Clock3, MapPinned, Navigation, RefreshCw, Route, Search, ShieldCheck } from 'lucide-react';
 import PageContainer from '../components/layout/PageContainer';
 import LiveOperationsMap from '../components/maps/LiveOperationsMap';
 import { HospitalRanking, ImpactPanel, ResourceRanking } from '../components/maps/LiveResponsePanels';
@@ -25,6 +25,8 @@ const LiveResponseIntelligence = () => {
   const [ambulanceRoute, setAmbulanceRoute] = useState(null);
   const [hospitalRoute, setHospitalRoute] = useState(null);
   const [routeStatus, setRouteStatus] = useState({ ambulance: '', hospital: '' });
+  const [incidentSearch, setIncidentSearch] = useState('');
+  const [contextSearch, setContextSearch] = useState('');
   const routeCache = useRef(new Map());
 
   const selectedIncident = useMemo(
@@ -32,6 +34,15 @@ const LiveResponseIntelligence = () => {
     [incidents, selectedIncidentId],
   );
   const areaById = useMemo(() => Object.fromEntries(areas.map((area) => [area.id, area])), [areas]);
+  const filteredIncidents = useMemo(() => {
+    const query = incidentSearch.trim().toLowerCase();
+    if (!query) return incidents;
+    return incidents.filter((incident) => {
+      const areaName = areaById[incident.area_id]?.name || '';
+      return [incident.id, incident.title, incident.category, incident.severity, areaName]
+        .some((value) => String(value || '').toLowerCase().includes(query));
+    });
+  }, [areaById, incidents, incidentSearch]);
 
   useEffect(() => {
     let active = true;
@@ -135,6 +146,24 @@ const LiveResponseIntelligence = () => {
     () => hospitalRanking?.hospitals?.find((item) => item.google_place_id === selectedHospitalId) || null,
     [hospitalRanking, selectedHospitalId],
   );
+  const visibleMatrix = useMemo(() => {
+    const query = contextSearch.trim().toLowerCase();
+    if (!query || !matrix?.rankings) return matrix;
+    return {
+      ...matrix,
+      rankings: matrix.rankings.filter((item) => [item.resource_id, item.source, item.congestion_level]
+        .some((value) => String(value || '').toLowerCase().includes(query))),
+    };
+  }, [contextSearch, matrix]);
+  const visibleHospitalRanking = useMemo(() => {
+    const query = contextSearch.trim().toLowerCase();
+    if (!query || !hospitalRanking?.hospitals) return hospitalRanking;
+    return {
+      ...hospitalRanking,
+      hospitals: hospitalRanking.hospitals.filter((item) => [item.name, item.vicinity, item.address, item.capacity_source, item.google_place_id]
+        .some((value) => String(value || '').toLowerCase().includes(query))),
+    };
+  }, [contextSearch, hospitalRanking]);
 
   useEffect(() => {
     if (!selectedIncident || !validCoordinates(selectedResource)) return undefined;
@@ -200,34 +229,51 @@ const LiveResponseIntelligence = () => {
   return (
     <PageContainer title="Live Response Intelligence">
       <div className="space-y-6">
-        <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-4 text-xs text-purple-200">Operational simulation seeded from public Mysuru facility directories. Vehicle availability, staffing and hospital capacity are simulated for prototype demonstration.</div>
-        <section className="bg-gradient-to-r from-blue-500/10 via-navy-800 to-purple-500/10 border border-blue-500/20 rounded-xl p-5">
+        <div className="rounded-xl border border-cyan-400/15 bg-cyan-400/5 p-4 text-xs leading-relaxed text-cyan-100">Data provenance: Google Maps, Routes, and Places provide live or near-live map, routing, traffic, and facility-location intelligence where available. CityMind uses simulated vehicle availability, staffing, dispatch state, and hospital capacity for safe prototype demonstration.</div>
+        <section className="glass-panel p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl"><p className="flex items-center gap-2 text-blue-300 text-xs font-semibold uppercase tracking-wider"><Navigation className="w-4 h-4" />Phase 5C decision surface</p><h1 className="text-2xl font-bold text-white mt-2">Traffic-aware response and hospital intelligence</h1><p className="text-sm text-slate-400 mt-2">Compare eligible ambulances, inspect real hospital identities, and review provenance before human approval.</p></div>
-            <div className="flex gap-2"><button type="button" onClick={() => window.location.reload()} className="px-3 py-2 rounded-lg border border-navy-600 bg-navy-800 text-xs font-semibold text-slate-200" aria-label="Refresh verified response intelligence"><RefreshCw className="w-4 h-4 inline mr-1.5" />Refresh</button><button type="button" onClick={explainWithAI} disabled={!selectedIncident} className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-white disabled:opacity-40" aria-label="Explain selected incident with CityMind AI"><Brain className="w-4 h-4 inline mr-1.5" />Explain with CityMind AI</button></div>
+            <div className="flex gap-2"><button type="button" onClick={() => window.location.reload()} className="cm-button" aria-label="Refresh verified response intelligence"><RefreshCw className="w-4 h-4 inline mr-1.5" />Refresh</button><button type="button" onClick={explainWithAI} disabled={!selectedIncident} className="cm-button cm-button-primary" aria-label="Explain selected incident with CityMind AI"><Brain className="w-4 h-4 inline mr-1.5" />Explain with CityMind AI</button></div>
           </div>
         </section>
 
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-100 flex gap-2" role="note"><ShieldCheck className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" /><span>Live Google traffic and hospital identity are combined with CityMind operational records. Bed availability may be simulated or unknown. All dispatch decisions require human confirmation.</span></div>
 
-        <section className="bg-navy-800 border border-navy-700 rounded-xl p-5">
-          <label htmlFor="incident-selector" className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Incident</label>
-          <select id="incident-selector" value={selectedIncidentId} onChange={(event) => setSelectedIncidentId(event.target.value)} disabled={incidentLoading || !incidents.length} className="w-full bg-navy-900 border border-navy-600 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30" aria-describedby="incident-help">
-            {!incidents.length && <option value="">No valid incidents available</option>}
-            {incidents.map((incident) => <option key={incident.id} value={incident.id}>#{incident.id} ? {incident.category} ? {incident.severity} ? {areaById[incident.area_id]?.name || `Area ${incident.area_id ?? 'unknown'}`}</option>)}
-          </select>
-          <p id="incident-help" className="text-[11px] text-slate-500 mt-2">Only incidents with valid coordinates are shown. The latest medical incident is selected when available.</p>
-          {incidentError && <p className="text-xs text-red-300 mt-2" role="alert">{incidentError}</p>}
-          {selectedIncident && <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-300"><span className="font-semibold text-white">#{selectedIncident.id} {selectedIncident.title}</span><span>{selectedIncident.category}</span><span>{selectedIncident.severity}</span><span>{Number(selectedIncident.latitude).toFixed(4)}, {Number(selectedIncident.longitude).toFixed(4)}</span></div>}
+        <section className="glass-panel p-5">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]">
+            <div>
+              <label htmlFor="incident-search" className="cm-section-label">Search incident</label>
+              <div className="relative mt-2">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <input id="incident-search" value={incidentSearch} onChange={(event) => setIncidentSearch(event.target.value)} placeholder="Search by ID, area, category, or severity" className="cm-input w-full pl-9" />
+              </div>
+              <p id="incident-help" className="mt-2 text-[11px] text-slate-500">Only incidents with valid coordinates are shown. The latest medical incident is selected when available.</p>
+            </div>
+            <div>
+              <label htmlFor="incident-selector" className="cm-section-label">Selected incident</label>
+              <select id="incident-selector" value={selectedIncidentId} onChange={(event) => setSelectedIncidentId(event.target.value)} disabled={incidentLoading || !incidents.length} className="cm-input mt-2 w-full" aria-describedby="incident-help">
+                {!incidents.length && <option value="">No valid incidents available</option>}
+                {filteredIncidents.map((incident) => <option key={incident.id} value={incident.id}>#{incident.id} · {incident.category} · {incident.severity} · {areaById[incident.area_id]?.name || `Area ${incident.area_id ?? 'unknown'}`}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="mt-4">
+            <label htmlFor="context-search" className="cm-section-label">Map and context search</label>
+            <div className="relative mt-2">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <input id="context-search" value={contextSearch} onChange={(event) => setContextSearch(event.target.value)} placeholder="Search area, incident, hospital, or resource..." className="cm-input w-full pl-9" />
+            </div>
+          </div>
+          {incidentError && <p className="mt-2 text-xs text-red-300" role="alert">{incidentError}</p>}
+          {selectedIncident && <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-300"><span className="cm-source-pill font-semibold text-white">#{selectedIncident.id} {selectedIncident.title}</span><span className="cm-source-pill">{selectedIncident.category}</span><span className="cm-source-pill">{selectedIncident.severity}</span><span className="cm-source-pill">{Number(selectedIncident.latitude).toFixed(4)}, {Number(selectedIncident.longitude).toFixed(4)}</span></div>}
         </section>
-
         <div aria-live="polite" className="sr-only">{decisionLoading ? 'Computing verified response intelligence' : decisionError || hospitalError || 'Verified response intelligence updated'}</div>
         {decisionError && <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-300" role="alert"><AlertTriangle className="w-4 h-4 inline mr-2" />{decisionError}</div>}
 
-        <LiveOperationsMap incident={selectedIncident} resources={matrix?.rankings || []} hospitals={hospitalRanking?.hospitals || []} matrix={matrix} hospitalRanking={hospitalRanking} ambulanceRoute={ambulanceRoute} hospitalRoute={hospitalRoute} selectedResourceCode={selectedResourceCode} selectedHospitalId={selectedHospitalId} onSelectResource={(item) => setSelectedResourceCode(item.resource_id)} onSelectHospital={(item) => setSelectedHospitalId(item.google_place_id)} />
+        <LiveOperationsMap incident={selectedIncident} resources={visibleMatrix?.rankings || []} hospitals={visibleHospitalRanking?.hospitals || []} matrix={visibleMatrix} hospitalRanking={visibleHospitalRanking} ambulanceRoute={ambulanceRoute} hospitalRoute={hospitalRoute} selectedResourceCode={selectedResourceCode} selectedHospitalId={selectedHospitalId} onSelectResource={(item) => setSelectedResourceCode(item.resource_id)} onSelectHospital={(item) => setSelectedHospitalId(item.google_place_id)} />
         <ImpactPanel impact={impact} durationMs={decisionDurationMs} />
-        <ResourceRanking matrix={matrix} loading={decisionLoading} selectedCode={selectedResourceCode} onSelect={setSelectedResourceCode} route={ambulanceRoute} routeStatus={routeStatus.ambulance} />
-        <HospitalRanking ranking={hospitalRanking} error={hospitalError} loading={decisionLoading} selectedId={selectedHospitalId} onSelect={setSelectedHospitalId} route={hospitalRoute} routeStatus={routeStatus.hospital} />
+        <ResourceRanking matrix={visibleMatrix} loading={decisionLoading} selectedCode={selectedResourceCode} onSelect={setSelectedResourceCode} route={ambulanceRoute} routeStatus={routeStatus.ambulance} />
+        <HospitalRanking ranking={visibleHospitalRanking} error={hospitalError} loading={decisionLoading} selectedId={selectedHospitalId} onSelect={setSelectedHospitalId} route={hospitalRoute} routeStatus={routeStatus.hospital} />
 
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-navy-800 border border-navy-700 rounded-xl p-4"><Clock3 className="w-5 h-5 text-blue-400" /><p className="text-[10px] text-slate-500 uppercase mt-3">Decision computation</p><p className="text-xl font-bold text-white mt-1">{decisionDurationMs === null ? '?' : `${decisionDurationMs} ms`}</p></div>

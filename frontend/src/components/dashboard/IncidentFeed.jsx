@@ -6,6 +6,7 @@ const getCategoryIcon = (category) => {
   switch (category) {
     case 'Fire': return <Flame className="w-4 h-4 text-orange-400" />;
     case 'Waterlogging': return <Droplets className="w-4 h-4 text-blue-400" />;
+    case 'Flood': return <Droplets className="w-4 h-4 text-cyan-400" />;
     case 'Road Accident': 
     case 'Traffic Congestion': return <Car className="w-4 h-4 text-yellow-400" />;
     case 'Public Disturbance': return <Users className="w-4 h-4 text-purple-400" />;

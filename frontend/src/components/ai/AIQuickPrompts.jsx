@@ -71,7 +71,7 @@ const AIQuickPrompts = ({ onSelect, disabled, incidents }) => {
 
   return (
     <div className="space-y-2">
-      <p className="text-[11px] text-slate-500 uppercase tracking-wider font-medium">Quick Prompts</p>
+      <p className="cm-section-label">Quick Prompts</p>
       <div className="grid grid-cols-2 gap-1.5">
         {QUICK_PROMPTS.map((item) => {
           const Icon = item.icon;
@@ -80,7 +80,7 @@ const AIQuickPrompts = ({ onSelect, disabled, incidents }) => {
               key={item.label}
               onClick={() => handleClick(item)}
               disabled={disabled}
-              className="flex items-center gap-2 px-3 py-2 bg-navy-800/50 border border-navy-700 rounded-lg text-left text-xs text-slate-300 hover:bg-navy-700/50 hover:text-white hover:border-navy-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="glass-card glass-card-hover flex items-center gap-2 px-3 py-2 text-left text-xs text-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
               aria-label={item.label}
             >
               <Icon className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />

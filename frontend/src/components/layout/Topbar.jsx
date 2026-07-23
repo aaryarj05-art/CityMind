@@ -295,27 +295,28 @@ const Topbar = ({ title }) => {
   };
 
   return (
-    <div className="h-16 bg-navy-800 border-b border-navy-700 flex items-center justify-between gap-3 px-3 sm:px-5 lg:px-8 sticky top-0 z-20">
-      <h2 className="min-w-0 truncate text-base sm:text-xl font-semibold text-white">{title}</h2>
+    <div className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-blue-300/10 bg-navy-950/65 px-3 shadow-lg shadow-black/15 backdrop-blur-xl sm:px-5 lg:px-8">
+      <div className="min-w-0"><p className="hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-200/60 sm:block">CityMind Operations</p><h2 className="truncate text-base font-semibold text-white sm:text-xl">{title}</h2></div>
       
       <div className="flex flex-shrink-0 items-center gap-1 sm:gap-3 lg:gap-6 text-sm">
-        <div className="hidden lg:flex items-center bg-navy-900 px-3 py-1.5 rounded-full border border-navy-700">
+        <div className="hidden items-center rounded-full border border-blue-300/10 bg-navy-900/65 px-3 py-1.5 shadow-inner shadow-black/10 lg:flex">
           <MapPin className="w-4 h-4 text-blue-400 mr-2" />
           <span className="text-slate-200 font-medium">Mysuru</span>
         </div>
         
-        <div className="hidden xl:flex items-center space-x-2 text-slate-400">
-          <span>{currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
-          <span>•</span>
-          <span>{currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+        <div className="hidden items-center gap-2 rounded-full border border-blue-300/10 bg-navy-900/45 px-3 py-1.5 text-slate-300 xl:flex">
+          <Clock3 className="h-3.5 w-3.5 text-cyan-300" />
+          <span>{currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' })}</span>
+          <span className="text-slate-600">|</span>
+          <span>{currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })} IST</span>
         </div>
 
-        <div className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${sessionExpiring ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : 'border-navy-700 bg-navy-900 text-slate-400'}`} title="CityMind session time remaining">
-          <Clock3 className="w-3.5 h-3.5" />
-          <span className="text-[11px] font-medium">{sessionExpiring ? 'Session expires soon' : `${Math.max(1, Math.ceil(remainingSeconds / 60))}m session`}</span>
+        <div className={`hidden items-center gap-1.5 rounded-full border px-2.5 py-1 md:flex ${sessionExpiring ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : 'border-emerald-400/15 bg-emerald-400/10 text-emerald-300'}`} title="Authenticated demo session status">
+          <span className={sessionExpiring ? 'h-1.5 w-1.5 rounded-full bg-amber-300' : 'h-1.5 w-1.5 rounded-full bg-emerald-300'} />
+          <span className="text-[11px] font-medium">{sessionExpiring ? `Demo session renews soon (${Math.max(1, Math.ceil(remainingSeconds / 60))}m)` : 'Demo session active'}</span>
         </div>
         {/* AI Status Indicator */}
-        <div className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 bg-navy-900 rounded-full border border-navy-700">
+        <div className="flex items-center gap-1.5 rounded-full border border-blue-300/10 bg-navy-900/65 px-2 py-1 sm:px-2.5">
           <Sparkles className="w-3.5 h-3.5 text-blue-400" />
           <span className={`w-1.5 h-1.5 rounded-full ${
             aiStatus === 'available' ? 'bg-emerald-400 animate-pulse' :
@@ -337,7 +338,7 @@ const Topbar = ({ title }) => {
         <div className="relative" ref={dropdownRef}>
           <button 
             onClick={() => setShowNotifications(prev => !prev)}
-            className="relative p-2 text-slate-400 hover:text-white transition-colors"
+            className="relative rounded-lg p-2 text-slate-400 transition-colors hover:bg-navy-800/70 hover:text-white"
             aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
             aria-expanded={showNotifications}
             aria-haspopup="true"
@@ -352,13 +353,13 @@ const Topbar = ({ title }) => {
 
           {/* Notification Panel */}
           {showNotifications && (
-            <div className="absolute right-0 top-12 w-[min(24rem,calc(100vw-6rem))] max-h-[28rem] bg-navy-800 border border-navy-700 rounded-xl shadow-2xl overflow-hidden flex flex-col z-50">
-              <div className="p-4 border-b border-navy-700 flex items-center justify-between bg-navy-800/90 sticky top-0">
+            <div className="glass-panel absolute right-0 top-12 z-50 flex max-h-[28rem] w-[min(24rem,calc(100vw-6rem))] flex-col overflow-hidden">
+              <div className="sticky top-0 flex items-center justify-between border-b border-blue-300/10 bg-navy-900/80 p-4 backdrop-blur">
                 <h3 className="text-white font-semibold text-sm">Notifications</h3>
                 {unreadCount > 0 && (
                   <button 
                     onClick={markAllAsRead}
-                    className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                    className="flex items-center gap-1 rounded-md px-1.5 py-1 text-xs text-blue-300 transition-colors hover:bg-blue-400/10 hover:text-cyan-200"
                     aria-label="Mark all notifications as read"
                   >
                     <CheckCheck className="w-3.5 h-3.5" /> Mark all read

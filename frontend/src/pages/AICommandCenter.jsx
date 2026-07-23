@@ -217,19 +217,19 @@ const AICommandCenter = () => {
 
   return (
     <PageContainer title="AI Command Center">
-      <div className="flex gap-4 h-[calc(100vh-8rem)]">
+      <div className="grid h-[calc(100vh-8rem)] gap-4 xl:grid-cols-[minmax(0,1fr)_19rem]">
         {/* Main chat area */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="glass-panel flex min-w-0 flex-col p-4">
           {/* Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-navy-700 mb-3">
+          <div className="mb-3 flex items-center justify-between border-b border-blue-300/10 pb-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500/10 rounded-lg">
+              <div className="rounded-xl border border-cyan-300/15 bg-cyan-400/10 p-2">
                 <Sparkles className="w-5 h-5 text-blue-400" />
               </div>
               <div>
                 <h2 className="text-sm font-semibold text-white">CityMind AI Command Center</h2>
                 <p className="text-[11px] text-slate-400">
-                  Google ADK multi-agent orchestration across risk, incidents, resources, hospitals, dispatches, and public communication.
+                  AI-assisted explanation over deterministic CityMind data. Human approval required before simulated action.
                 </p>
               </div>
             </div>
@@ -242,7 +242,7 @@ const AICommandCenter = () => {
 
               {/* Session badge */}
               {sessionId && (
-                <div className="flex items-center gap-1 px-2 py-0.5 bg-navy-800 border border-navy-700 rounded text-[10px] text-slate-500">
+                <div className="flex items-center gap-1 rounded-md border border-blue-300/10 bg-navy-950/45 px-2 py-0.5 text-[10px] text-slate-500">
                   <Hash className="w-3 h-3" />
                   <span className="truncate max-w-[80px]">{sessionId.split('-').slice(-1)[0]}</span>
                 </div>
@@ -252,7 +252,7 @@ const AICommandCenter = () => {
               {messages.length > 0 && (
                 <button
                   onClick={() => setShowClearConfirm(true)}
-                  className="flex items-center gap-1 px-2 py-1 text-[11px] text-slate-400 hover:text-red-400 border border-navy-700 rounded-lg hover:border-red-500/30 transition-colors"
+                  className="cm-button px-2 py-1 text-[11px] hover:border-red-500/30 hover:text-red-300"
                   aria-label="Clear conversation"
                 >
                   <Trash2 className="w-3 h-3" />
@@ -269,13 +269,13 @@ const AICommandCenter = () => {
           <div className="flex-1 overflow-y-auto mt-3 space-y-4 pr-1 min-h-0">
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
-                <div className="p-4 bg-navy-800 rounded-2xl border border-navy-700">
+                <div className="glass-panel-subtle p-4">
                   <Sparkles className="w-10 h-10 text-blue-400/60" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-white mb-1">Ask CityMind AI</h3>
+                  <h3 className="mb-1 text-sm font-medium text-white">Ask CityMind AI</h3>
                   <p className="text-xs text-slate-400 max-w-sm">
-                    Ask operational questions across risk, incidents, resources, hospitals, dispatches, and public communication using Google ADK multi-agent orchestration.
+                    Ask concise operational questions. CityMind AI explains verified risk, response, security, and communication data without taking autonomous action.
                   </p>
                 </div>
               </div>
@@ -284,7 +284,7 @@ const AICommandCenter = () => {
                 if (msg.role === 'error') {
                   return (
                     <div key={msg.id} className="flex justify-start">
-                      <div className="max-w-[85%] bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 space-y-2">
+                      <div className="max-w-[85%] rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 space-y-2 shadow-lg shadow-black/10">
                         <div className="flex items-center gap-2">
                           <WifiOff className="w-4 h-4 text-red-400" />
                           <span className="text-xs font-medium text-red-400">Error</span>
@@ -294,7 +294,7 @@ const AICommandCenter = () => {
                           <button
                             onClick={() => handleRetry(msg.retryText)}
                             disabled={loading}
-                            className="flex items-center gap-1 px-2.5 py-1 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-300 text-xs rounded-lg transition-colors disabled:opacity-40"
+                            className="cm-button border-red-500/30 bg-red-500/15 px-2.5 py-1 text-xs text-red-200 hover:bg-red-500/25"
                           >
                             <RefreshCw className="w-3 h-3" />
                             Retry
@@ -311,13 +311,9 @@ const AICommandCenter = () => {
             {/* Loading indicator */}
             {loading && (
               <div className="flex justify-start">
-                <div className="max-w-[85%] bg-navy-800 border border-navy-600 rounded-xl rounded-tl-sm px-4 py-3">
+                <div className="max-w-[85%] rounded-xl rounded-tl-sm border border-cyan-300/15 bg-navy-900/70 px-4 py-3 shadow-lg shadow-black/10">
                   <div className="flex items-center gap-2">
-                    <div className="flex gap-1">
-                      <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
+                    <span className="cm-live-dot" />
                     <span className="text-xs text-blue-400" role="status" aria-live="polite">
                       {LOADING_LABELS[loadingLabelIdx]}
                     </span>
@@ -330,7 +326,7 @@ const AICommandCenter = () => {
           </div>
 
           {/* Input */}
-          <div className="pt-3 border-t border-navy-700 mt-auto space-y-1.5">
+          <div className="mt-auto space-y-1.5 border-t border-blue-300/10 pt-3">
             <div className="flex items-end gap-2">
               <label htmlFor="ai-chat-input" className="sr-only">Ask CityMind AI a question</label>
               <textarea
@@ -342,13 +338,13 @@ const AICommandCenter = () => {
                 placeholder="Ask a question about city operations..."
                 disabled={loading}
                 rows={2}
-                className="flex-1 resize-none bg-navy-900 border border-navy-600 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 disabled:opacity-50 transition-colors"
+                className="cm-input flex-1 resize-none disabled:opacity-50"
                 aria-label="Ask CityMind AI a question"
               />
               <button
                 onClick={() => sendMessage(input)}
                 disabled={loading || !input.trim()}
-                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 text-sm font-medium h-[42px]"
+                className="cm-button cm-button-primary h-[42px] px-4 py-2.5 text-sm"
                 aria-label="Send message"
               >
                 <Sparkles className="w-4 h-4" />
@@ -362,7 +358,7 @@ const AICommandCenter = () => {
         </div>
 
         {/* Right sidebar */}
-        <div className="w-72 flex-shrink-0 space-y-4 overflow-y-auto">
+        <div className="min-w-0 space-y-4 overflow-y-auto xl:w-80">
           <AIContextPanel />
           {user?.role === 'DemoAdmin' && (
             <SecurityTestPrompts onInsert={(prompt) => { setInput(prompt); inputRef.current?.focus(); }} disabled={loading} />
@@ -378,7 +374,7 @@ const AICommandCenter = () => {
       {/* Clear Confirmation Modal */}
       {showClearConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowClearConfirm(false)}>
-          <div className="bg-navy-800 border border-navy-700 rounded-xl p-6 max-w-sm mx-4 space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="glass-panel mx-4 max-w-sm space-y-4 p-6" onClick={e => e.stopPropagation()}>
             <h3 className="text-white font-semibold text-sm">Clear Conversation?</h3>
             <p className="text-xs text-slate-400">
               This will remove all chat messages and reset the AI session. The operational dashboard and deterministic tools will not be affected.
@@ -386,13 +382,13 @@ const AICommandCenter = () => {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setShowClearConfirm(false)}
-                className="px-3 py-1.5 text-xs text-slate-300 border border-navy-600 rounded-lg hover:bg-navy-700 transition-colors"
+                className="cm-button px-3 py-1.5 text-xs"
               >
                 Cancel
               </button>
               <button
                 onClick={handleClearConversation}
-                className="px-3 py-1.5 text-xs text-white bg-red-600 hover:bg-red-500 rounded-lg transition-colors"
+                className="cm-button border-red-400/20 bg-red-600/80 px-3 py-1.5 text-xs text-white hover:bg-red-500"
               >
                 Clear All
               </button>

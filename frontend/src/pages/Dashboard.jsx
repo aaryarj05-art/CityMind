@@ -10,6 +10,7 @@ import LoadingState from '../components/common/LoadingState';
 import ErrorState from '../components/common/ErrorState';
 import RiskLevelBadge from '../components/common/RiskLevelBadge';
 import DispatchDetailsDrawer from '../components/common/DispatchDetailsDrawer';
+import DataSourceValidation from '../components/common/DataSourceValidation';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { riskAPI, areasAPI, dispatchAPI } from '../services/api';
 import { formatDate } from '../utils/formatters';
@@ -135,16 +136,41 @@ const Dashboard = () => {
 
   return (
     <PageContainer title="City Overview">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-navy-700 bg-navy-800 px-4 py-3 text-xs text-slate-400">
+      <div className="glass-panel mb-5 flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs text-slate-400">
         <span className={degraded ? 'text-amber-300' : stale ? 'text-orange-300' : 'text-emerald-300'}>
-          {refreshing ? 'Refreshing current operations…' : degraded ? 'Degraded data freshness' : stale ? 'Data is becoming stale' : 'Current database state'}
+          {refreshing ? 'Refreshing current operations...' : degraded ? 'Degraded data freshness' : stale ? 'Data is becoming stale' : 'Current database state'}
         </span>
-        <span>Updated {formatDate(summary.last_updated)} · {summary.data_freshness_seconds}s old · Readiness {summary.readiness_percent.toFixed(1)}%</span>
+        <span>Updated {formatDate(summary.last_updated)} | {summary.data_freshness_seconds}s old | Readiness {summary.readiness_percent.toFixed(1)}%</span>
       </div>
-      <div className="mb-5 rounded-xl border border-purple-500/20 bg-purple-500/5 p-4 text-xs text-purple-200">{summary.data_source_note}</div>
+      <div className="mb-5 rounded-xl border border-cyan-400/15 bg-cyan-400/5 p-4 text-xs leading-relaxed text-cyan-100">
+        Data provenance: Google Maps, Routes, and Places provide live or near-live map, routing, traffic, and facility-location intelligence where available. CityMind uses simulated vehicle availability, staffing, dispatch state, and hospital capacity for safe prototype demonstration.
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard title="Active Incidents" value={summary.active_incidents} icon={AlertCircle} color="orange" />
+      <div className="mb-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <DataSourceValidation />
+        <section className="glass-panel p-5 cm-fade-up" aria-labelledby="judge-demo-title">
+          <p className="cm-section-label">Guided Demo</p>
+          <h3 id="judge-demo-title" className="mt-1 text-lg font-semibold text-white">CityMind Judge Demo Walkthrough</h3>
+          <ol className="mt-4 space-y-2 text-xs leading-relaxed text-slate-300">
+            {[
+              'City risk detected',
+              'Lashkar Mohalla identified as highest-risk area',
+              'Emergency resources evaluated',
+              'Hospital and route intelligence considered',
+              'Gemini ADK agents generate operational explanation',
+              'Human approval required before simulated action',
+              'Audit trail recorded',
+            ].map((step, idx) => (
+              <li key={step} className="flex gap-2 rounded-lg border border-blue-300/10 bg-navy-950/35 p-2">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-400/10 text-[10px] font-bold text-cyan-200">{idx + 1}</span>
+                <span>{step}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      </div>
+
+      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">        <StatCard title="Active Incidents" value={summary.active_incidents} icon={AlertCircle} color="orange" />
         <StatCard title="Critical Zones" value={summary.critical_zones} icon={Map} color="red" />
         <Link to="/resources"><StatCard title="Deployable Units" value={summary.total_resources} icon={Siren} color="blue" /></Link>
         <Link to="/resources"><StatCard title="Available Units" value={summary.available_resources} icon={Shield} color="green" /></Link>
@@ -154,7 +180,7 @@ const Dashboard = () => {
         <StatCard title="Avg Response" value={summary.average_response_time} icon={Clock} color="purple" />
       </div>
       {/* Phase 2 Deterministic Risk Intelligence Section */}
-      <div className="bg-navy-800 border border-navy-700 rounded-xl p-6 mb-8">
+      <div className="glass-panel mb-8 p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-navy-700/60 pb-4 mb-6">
           <div>
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -278,7 +304,7 @@ const Dashboard = () => {
       </div>
 
       {/* Phase 3 Dispatch Intelligence Section */}
-      <div className="bg-navy-800 border border-navy-700 rounded-xl p-6 mb-8">
+      <div className="glass-panel mb-8 p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-navy-700/60 pb-4 mb-6">
           <div>
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -300,19 +326,19 @@ const Dashboard = () => {
             {/* Dispatch Stats Grid */}
             {dispatchSummary && (
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-navy-900/50 border border-navy-700/50 rounded-xl p-4">
+                <div className="glass-panel-subtle p-4">
                   <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Active Dispatches</span>
                   <span className="text-2xl font-extrabold text-white mt-1.5 block">{dispatchSummary.active_dispatch_count}</span>
                 </div>
-                <div className="bg-navy-900/50 border border-navy-700/50 rounded-xl p-4">
+                <div className="glass-panel-subtle p-4">
                   <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Currently Assigned</span>
                   <span className="text-2xl font-extrabold text-orange-400 mt-1.5 block">{dispatchSummary.resources_currently_assigned}</span>
                 </div>
-                <div className="bg-navy-900/50 border border-navy-700/50 rounded-xl p-4">
+                <div className="glass-panel-subtle p-4">
                   <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Average ETA</span>
                   <span className="text-2xl font-extrabold text-yellow-400 mt-1.5 block">{dispatchSummary.average_eta.toFixed(1)} min</span>
                 </div>
-                <div className="bg-navy-900/50 border border-navy-700/50 rounded-xl p-4">
+                <div className="glass-panel-subtle p-4">
                   <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Incomplete Plans</span>
                   <span className="text-2xl font-extrabold text-red-400 mt-1.5 block">{dispatchSummary.incomplete_response_plan_count}</span>
                 </div>
@@ -330,7 +356,7 @@ const Dashboard = () => {
                     No active dispatches. Use the Incidents page to initiate one.
                   </div>
                 ) : (
-                  <div className="bg-navy-900/30 border border-navy-700/50 rounded-xl overflow-hidden">
+                  <div className="cm-table">
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs whitespace-nowrap">
                         <thead className="bg-navy-950/40 text-slate-500 uppercase font-semibold">
@@ -409,7 +435,7 @@ const Dashboard = () => {
                 Risk zone data unavailable.
               </div>
             ) : (
-              <div className="bg-navy-800 border border-navy-700 rounded-xl overflow-hidden">
+              <div className="cm-table">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-navy-900/50 text-slate-400 uppercase text-xs">
@@ -477,7 +503,7 @@ const Dashboard = () => {
       />
 
       {/* AI Command Center Card (Phase 4) */}
-      <div className="mt-6 bg-navy-800 border border-navy-700 rounded-xl p-5">
+      <div className="glass-panel mt-6 p-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-500/10 rounded-lg">
@@ -485,7 +511,7 @@ const Dashboard = () => {
             </div>
             <div>
               <h3 className="text-sm font-semibold text-white">CityMind AI Command Center</h3>
-              <p className="text-xs text-slate-400">Google ADK multi-agent orchestration â€” ask operational questions across all city systems.</p>
+              <p className="text-xs text-slate-400">AI-assisted explanation over deterministic CityMind data. Human approval required before simulated action.</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -507,7 +533,7 @@ const Dashboard = () => {
             </div>
             <Link
               to="/ai-command-center"
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5"
+              className="cm-button cm-button-primary px-3 py-1.5"
             >
               <Sparkles className="w-3.5 h-3.5" />
               Ask CityMind AI

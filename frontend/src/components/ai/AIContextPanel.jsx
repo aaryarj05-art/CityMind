@@ -61,12 +61,12 @@ const AIContextPanel = () => {
 
   return (
     <div className="space-y-2">
-      <p className="text-[11px] text-slate-500 uppercase tracking-wider font-medium">Operational Context</p>
+      <p className="cm-section-label">Operational Context</p>
       <div className="grid grid-cols-2 gap-1.5">
         {items.map((item) => {
           const Icon = item.icon;
           return (
-            <div key={item.label} className="flex items-center gap-2 px-2.5 py-1.5 bg-navy-900/50 border border-navy-700 rounded-lg">
+            <div key={item.label} className="glass-panel-subtle flex items-center gap-2 px-2.5 py-1.5">
               <Icon className={`w-3 h-3 ${item.color} flex-shrink-0`} />
               <div className="min-w-0">
                 <p className="text-[10px] text-slate-500 truncate">{item.label}</p>

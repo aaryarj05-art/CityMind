@@ -90,9 +90,9 @@ const Sidebar = () => {
       .toUpperCase() || 'CM';
 
   return (
-    <aside className="fixed left-0 top-0 z-30 flex h-screen w-20 flex-col border-r border-navy-700 bg-navy-800 text-slate-300 lg:w-64">
+    <aside className="fixed left-0 top-0 z-30 flex h-screen w-20 flex-col border-r border-blue-300/10 bg-navy-950/70 text-slate-300 shadow-2xl shadow-black/30 backdrop-blur-xl lg:w-64">
       {/* CityMind branding */}
-      <div className="flex min-h-[88px] items-center justify-center border-b border-navy-700 px-3 lg:min-h-[104px] lg:px-5">
+      <div className="flex min-h-[88px] items-center justify-center border-b border-blue-300/10 px-3 lg:min-h-[104px] lg:px-5">
         {/* Compact logo for collapsed sidebar */}
         <img
           src="/citymind-icon.png"
@@ -120,10 +120,10 @@ const Sidebar = () => {
                 end={item.path === '/'}
                 title={item.name}
                 className={({ isActive }) =>
-                  `flex items-center justify-center rounded-lg px-3 py-3 transition-colors lg:justify-start lg:space-x-3 lg:px-4 ${
+                  `flex items-center justify-center rounded-xl px-3 py-3 transition-all duration-200 focus-visible:ring-cyan-400/50 lg:justify-start lg:space-x-3 lg:px-4 ${
                     isActive
-                      ? 'bg-blue-600/20 text-blue-400'
-                      : 'hover:bg-navy-700 hover:text-white'
+                      ? 'border border-cyan-300/20 bg-blue-500/15 text-cyan-100 shadow-lg shadow-blue-950/25'
+                      : 'border border-transparent hover:-translate-y-0.5 hover:border-blue-300/15 hover:bg-navy-800/70 hover:text-white'
                   }`
                 }
               >
@@ -137,8 +137,8 @@ const Sidebar = () => {
         </ul>
       </nav>
 
-      <div className="border-t border-navy-700 p-2 lg:p-4">
-        <div className="rounded-xl bg-navy-900 p-2 lg:p-3">
+      <div className="border-t border-blue-300/10 p-2 lg:p-4">
+        <div className="glass-panel-subtle p-2 lg:p-3">
           <div className="flex items-center justify-center lg:justify-start lg:gap-3">
             {user?.picture_url ? (
               <img
@@ -173,7 +173,7 @@ const Sidebar = () => {
           <button
             type="button"
             onClick={logout}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg px-2 py-2 text-xs text-slate-400 hover:bg-red-500/10 hover:text-red-300 lg:justify-start"
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg px-2 py-2 text-xs text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-300 focus-visible:ring-red-400/40 lg:justify-start"
             aria-label="Log out of CityMind"
           >
             <LogOut className="h-4 w-4" />

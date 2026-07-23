@@ -78,7 +78,7 @@ export const dispatchAPI = {
   cancel: (id) => api.post(`/dispatches/${id}/cancel`), complete: (id) => api.post(`/dispatches/${id}/complete`),
 };
 export const demoAPI = { reset: () => api.post('/demo/reset') };
-export const aiAPI = { query: (payload) => api.post('/ai/query', payload, { timeout: 70000 }) };
+export const aiAPI = { query: (payload) => api.post('/ai/query', payload, { timeout: 125000 }) };
 export const securityAPI = {
   getSummary: () => api.get('/security/summary'), getEvents: (params) => api.get('/security/events', { params }),
   getEvent: (eventId) => api.get(`/security/events/${eventId}`), getAuditIntegrity: () => api.get('/security/audit-integrity'),
