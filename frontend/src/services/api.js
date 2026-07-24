@@ -79,6 +79,7 @@ export const dispatchAPI = {
 };
 export const demoAPI = { reset: () => api.post('/demo/reset') };
 export const aiAPI = { query: (payload) => api.post('/ai/query', payload, { timeout: 125000 }) };
+export const analyticsAPI = { getBigQueryStatus: () => api.get('/analytics/bigquery/status') };
 export const securityAPI = {
   getSummary: () => api.get('/security/summary'), getEvents: (params) => api.get('/security/events', { params }),
   getEvent: (eventId) => api.get(`/security/events/${eventId}`), getAuditIntegrity: () => api.get('/security/audit-integrity'),

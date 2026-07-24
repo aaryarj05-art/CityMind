@@ -29,7 +29,8 @@ def test_eta_formula_and_minimum():
 def test_multi_resource_rules():
     assert required_resources("Road Accident", "High") == {"Ambulance": 1, "Police Vehicle": 1}
     assert required_resources("Road Accident", "Critical") == {"Ambulance": 2, "Police Vehicle": 1}
-    assert required_resources("Fire", "Critical") == {"Fire Engine": 1, "Ambulance": 1}
+    assert required_resources("Fire", "Critical") == {"Fire Engine": 1, "Police Vehicle": 1, "Ambulance": 1}
+    assert required_resources("Flood", "High") == {"Municipal Unit": 2, "Ambulance": 1, "Police Vehicle": 1}
 
 
 def test_suitability_weights_total_100_percent():

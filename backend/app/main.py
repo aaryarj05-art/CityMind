@@ -7,7 +7,7 @@ from sqlalchemy import inspect, text
 from app.database import Base, SessionLocal, engine
 from app.dependencies.auth import require_permission, require_user_or_internal_service
 from app.routes import (
-    ai, areas, auth, complaints, dashboard, demo, dispatch, hospitals,
+    ai, analytics, areas, auth, complaints, dashboard, demo, dispatch, hospitals,
     hospitals_google, incidents, maps, resources, risk, security,
 )
 from app.seed.seed_data import seed_db
@@ -118,6 +118,7 @@ def health_check():
 # Public authentication exchange; all operational routers enforce deterministic RBAC.
 app.include_router(auth.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api", dependencies=[Depends(require_permission("dashboard.read"))])
+app.include_router(analytics.router, prefix="/api", dependencies=[Depends(require_permission("analytics.read"))])
 app.include_router(areas.router, prefix="/api", dependencies=[Depends(require_permission("risk.read"))])
 app.include_router(incidents.router, prefix="/api", dependencies=[Depends(require_user_or_internal_service("incidents.read"))])
 app.include_router(resources.router, prefix="/api", dependencies=[Depends(require_user_or_internal_service("resources.read"))])

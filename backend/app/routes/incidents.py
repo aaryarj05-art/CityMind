@@ -8,6 +8,7 @@ from app import models, schemas
 from app.database import get_db
 from app.dependencies.auth import require_permission
 from app.services.auth_service import AuthenticatedUser
+from app.services.bigquery_analytics import export_incident_event
 from app.services.distance_service import has_valid_coordinates
 from app.services.security_audit import append_security_event
 
@@ -50,6 +51,7 @@ def create_incident(payload: schemas.IncidentCreate, request: Request,
     if area and payload.status not in {"Resolved", "Closed"}: area.active_incident_count += 1
     db.commit(); db.refresh(incident)
     _audit(db, request, current, "incident_created", incident.id)
+    export_incident_event(incident, area=area, source="incident_created")
     return incident
 
 
@@ -78,6 +80,7 @@ def update_incident(incident_id: int, payload: schemas.IncidentUpdate, request: 
         new_area.active_incident_count += 1
     db.commit(); db.refresh(incident)
     _audit(db, request, current, "incident_updated", incident.id)
+    export_incident_event(incident, area=db.get(models.Area, incident.area_id), source="incident_updated")
     return incident
 
 

@@ -10,6 +10,7 @@ from app.models import Dispatch, DispatchAssignment, Incident
 from app.schemas.dispatch import AllocationPlan, DispatchCreate, DispatchResponse, DispatchStatusUpdate, DispatchSummary
 from app.services.allocation_engine import build_allocation_plan
 from app.services.auth_service import AuthenticatedUser
+from app.services.bigquery_analytics import export_dispatch_event
 from app.services.dispatch_service import DispatchError, create_dispatch, dispatch_summary, serialize_dispatch, transition_dispatch
 from app.services.security_audit import append_security_event
 
@@ -50,6 +51,7 @@ def post_dispatch(
     try:
         result = create_dispatch(db, payload)
         _record_approval(db, request, current, "dispatch_created", result["id"], payload.decision_id)
+        export_dispatch_event(result, source="dispatch_created")
         return result
     except DispatchError as error:
         _raise(error)
@@ -100,6 +102,7 @@ def patch_dispatch_status(
     try:
         result = transition_dispatch(db, dispatch, payload.status)
         _record_approval(db, request, current, f"dispatch_status_{payload.status.lower().replace(' ', '_')}", dispatch_id, payload.decision_id)
+        export_dispatch_event(result, source=f"dispatch_status_{payload.status.lower().replace(' ', '_')}")
         return result
     except DispatchError as error:
         _raise(error)
@@ -118,6 +121,7 @@ def cancel_dispatch(
     try:
         result = transition_dispatch(db, dispatch, "Cancelled")
         _record_approval(db, request, current, "dispatch_cancelled", dispatch_id, decision_id)
+        export_dispatch_event(result, source="dispatch_cancelled")
         return result
     except DispatchError as error:
         _raise(error)
@@ -136,6 +140,7 @@ def complete_dispatch(
     try:
         result = transition_dispatch(db, dispatch, "Completed")
         _record_approval(db, request, current, "dispatch_completed", dispatch_id, decision_id)
+        export_dispatch_event(result, source="dispatch_completed")
         return result
     except DispatchError as error:
         _raise(error)

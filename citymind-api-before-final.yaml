@@ -1,0 +1,80 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/ingress-status: all
+    run.googleapis.com/maxScale: '20'
+    run.googleapis.com/urls: '["https://citymind-api-440231657585.asia-south1.run.app","https://citymind-api-va62x64y2q-el.a.run.app"]'
+  labels:
+    cloud.googleapis.com/location: asia-south1
+    run.googleapis.com/satisfiesPzs: 'true'
+  name: citymind-api
+  namespace: '440231657585'
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/maxScale: '20'
+        run.googleapis.com/client-name: gcloud
+        run.googleapis.com/client-version: 575.0.0
+        run.googleapis.com/startup-cpu-boost: 'true'
+      labels:
+        client.knative.dev/nonce: tnqknxicsd
+        run.googleapis.com/startupProbeType: Default
+    spec:
+      containerConcurrency: 80
+      containers:
+      - env:
+        - name: ADK_BASE_URL
+          value: https://citymind-adk-440231657585.asia-south1.run.app
+        - name: CITYMIND_ALLOWED_ORIGINS
+          value: https://citymind-frontend-440231657585.asia-south1.run.app
+        - name: CITYMIND_SESSION_MINUTES
+          value: '15'
+        - name: ENVIRONMENT
+          value: production
+        - name: GOOGLE_MAPS_SERVER_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: latest
+              name: citymind-maps-server-key
+        - name: GOOGLE_OAUTH_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              key: latest
+              name: citymind-oauth-client-id
+        - name: CITYMIND_JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              key: latest
+              name: citymind-jwt-secret
+        - name: CITYMIND_INTERNAL_SERVICE_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: latest
+              name: citymind-internal-service-token
+        - name: CITYMIND_ROLE_MAPPINGS_JSON
+          valueFrom:
+            secretKeyRef:
+              key: latest
+              name: citymind-role-mappings
+        image: asia-south1-docker.pkg.dev/citymind-apac/citymind/citymind-api:latest
+        ports:
+        - containerPort: 8080
+          name: http1
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+        startupProbe:
+          failureThreshold: 1
+          periodSeconds: 240
+          tcpSocket:
+            port: 8080
+          timeoutSeconds: 240
+      serviceAccountName: citymind-runtime@citymind-apac.iam.gserviceaccount.com
+      timeoutSeconds: 300
+  traffic:
+  - latestRevision: true
+    percent: 100

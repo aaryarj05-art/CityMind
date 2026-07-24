@@ -90,7 +90,7 @@ async def query_citymind_agents(
 ) -> dict[str, Any]:
     resolved_session_id = session_id or f"session-{uuid.uuid4()}"
 
-    timeout = httpx.Timeout(60.0)
+    timeout = httpx.Timeout(120.0)
 
     async with httpx.AsyncClient(timeout=timeout) as client:
         try:

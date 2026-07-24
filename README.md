@@ -124,7 +124,7 @@ The frontend stores only the CityMind JWT, minimal user profile, and expiry in `
 
 Authentication audits record login success/failure, logout, expired/invalid sessions, and permission denials with reason codes and request metadata where available. Google credentials, CityMind JWTs, access/refresh tokens, passwords, and secrets are never persisted in the audit or user tables.
 
-Environment variable names: `VITE_GOOGLE_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_ID`, `CITYMIND_JWT_SECRET`, `CITYMIND_SESSION_MINUTES`, `CITYMIND_ROLE_MAPPINGS_JSON`, and `CITYMIND_INTERNAL_SERVICE_TOKEN`. Do not commit environment files or real values.
+Environment variable names: `VITE_GOOGLE_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_ID`, `CITYMIND_JWT_SECRET`, `CITYMIND_SESSION_MINUTES`, `CITYMIND_ROLE_MAPPINGS_JSON`, `CITYMIND_INTERNAL_SERVICE_TOKEN`, `CITYMIND_BIGQUERY_ENABLED`, `CITYMIND_GCP_PROJECT_ID`, and `CITYMIND_BIGQUERY_DATASET`. Do not commit environment files or real values.
 
 Verification: the full backend suite passes with `124 passed, 6 warnings`; two frontend service tests pass; the production frontend build succeeds with 2,497 modules transformed; frontend lint exits successfully with existing warnings plus a Fast Refresh advisory for the auth context. Browser verification confirmed the responsive `/login` page and official Google-rendered button. Completing the real account chooser and sign-in-dependent browser checks requires a user-controlled approved Google session and is not claimed here.
 
@@ -191,6 +191,13 @@ Verification: the complete backend suite passed (`145 passed, 5 warnings`); fron
 
 Known limitations: rate/abuse state is process-local; rule-based detection can have false positives and false negatives; the SQLite chain is tamper-evident rather than immutable; active-session count is reported unavailable because no accurate server-side session registry exists; agent health reflects observed audited activity, not autonomous monitoring; and manual Google login/ADK/Google API flows still require configured credentials and user-controlled sessions.
 
+## Optional BigQuery analytics layer
+
+CityMind can export historical incident, dispatch, AI decision/audit, and risk snapshot events to Google BigQuery for long-term analytics and predictive intelligence. SQLite remains the primary transactional store; BigQuery exports are best-effort and never block API requests.
+
+Configure the API with `CITYMIND_BIGQUERY_ENABLED=true`, `CITYMIND_GCP_PROJECT_ID=citymind-apac`, and `CITYMIND_BIGQUERY_DATASET=citymind_analytics`. Authentication uses Application Default Credentials or the Cloud Run runtime service account; do not use JSON key files. The protected `GET /api/analytics/bigquery/status` endpoint reports Disabled, Configured, or Error, and `POST /api/analytics/bigquery/export-snapshot` can export the current risk snapshot on demand.
+
+Before enabling exports in Google Cloud, enable the BigQuery API and grant the runtime service account BigQuery Data Editor and BigQuery Job User on project `citymind-apac`.
 ## Cloud Run readiness
 
 CityMind is prepared as two independently built Cloud Run services:

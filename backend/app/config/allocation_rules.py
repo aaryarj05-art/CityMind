@@ -5,7 +5,8 @@ RESOURCE_TYPES = ("Ambulance", "Police Vehicle", "Fire Engine", "Municipal Unit"
 INCIDENT_RESOURCE_REQUIREMENTS = {
     "Medical Emergency": {"Ambulance": 1},
     "Road Accident": {"Ambulance": 1, "Police Vehicle": 1},
-    "Fire": {"Fire Engine": 1},
+    "Fire": {"Fire Engine": 1, "Police Vehicle": 1},
+    "Flood": {"Municipal Unit": 2, "Ambulance": 1, "Police Vehicle": 1},
     "Traffic Congestion": {"Police Vehicle": 1},
     "Road Blockage": {"Police Vehicle": 1, "Municipal Unit": 1},
     "Waterlogging": {"Municipal Unit": 1},

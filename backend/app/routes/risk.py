@@ -9,8 +9,9 @@ from app.config.risk_weights import NEARBY_RADIUS_KM
 from app.database import get_db
 from app.models import Area, Incident, Resource
 from app.schemas.risk import AreaRisk, IncidentPriority, RiskSummary
+from app.services.bigquery_analytics import export_risk_snapshot
 from app.services.incident_priority import calculate_incident_priority
-from app.services.risk_engine import calculate_all_area_risks, distance_km, utc_now
+from app.services.risk_engine import ACTIVE_INCIDENT_STATUSES, calculate_all_area_risks, distance_km, utc_now
 from app.services.weather_service import get_current_weather
 
 router = APIRouter(prefix="/risk", tags=["Risk Intelligence"])
@@ -96,6 +97,12 @@ async def read_incident_priority(incident_id: int, db: Session = Depends(get_db)
 async def read_risk_summary(db: Session = Depends(get_db)):
     context = await _risk_context(db)
     calculated_at, area_risks, _, _ = context
+    active_counts = defaultdict(int)
+    for incident in db.query(Incident).filter(Incident.status.in_(ACTIVE_INCIDENT_STATUSES)).all():
+        active_counts[incident.area_id] += 1
+    for risk in area_risks:
+        risk["active_incidents"] = active_counts[risk["area_id"]]
+    export_risk_snapshot(area_risks, calculated_at=calculated_at)
     incident_priorities, _ = await _all_incident_priorities(db, context)
     ranked_areas = sorted(area_risks, key=lambda result: result["risk_score"], reverse=True)
     factor_totals: dict[str, float] = defaultdict(float)

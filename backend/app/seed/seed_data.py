@@ -242,6 +242,19 @@ def reset_simulation_data(db: Session) -> dict:
             incidents.append(incident)
             if status not in {"Resolved", "Closed"}:
                 area.active_incident_count += 1
+        flood_incidents = [
+            (19, areas[7], "High", "Reported", "Flood at Siddhartha Layout",
+                "Low-lying road flooding near Siddhartha Layout requiring pumping, barricades, and evacuation support."),
+            (20, areas[11], "Critical", "Assigned", "Flood at Alanahalli",
+                "Drain overflow and street flooding near Alanahalli requiring evacuation support and traffic diversion."),
+        ]
+        for incident_id, area, severity, status, title, description in flood_incidents:
+            incidents.append(Incident(id=incident_id, title=title, description=description,
+                category="Flood", severity=severity, status=status, area_id=area.id,
+                latitude=area.latitude, longitude=area.longitude, responding_department="Municipal",
+                reported_at=now - timedelta(minutes=15 * incident_id), updated_at=now - timedelta(minutes=5 * (incident_id % 4))))
+            if status not in {"Resolved", "Closed"}:
+                area.active_incident_count += 1
         db.add_all(incidents)
 
         bases = _make_bases()

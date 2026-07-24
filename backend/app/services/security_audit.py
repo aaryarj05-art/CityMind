@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 import uuid
 from datetime import datetime, time, timezone
@@ -13,6 +14,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import AuthenticationAudit, SecurityEvent
+
+logger = logging.getLogger(__name__)
 
 GENESIS_HASH = "0" * 64
 PROMPT_EXCERPT_LIMIT = 180
@@ -122,6 +125,12 @@ def append_security_event(
     db.add(event)
     db.commit()
     db.refresh(event)
+    try:
+        from app.services.bigquery_analytics import export_audit_event
+
+        export_audit_event(event)
+    except Exception:
+        logger.exception("Best-effort BigQuery audit export failed")
     return event
 
 

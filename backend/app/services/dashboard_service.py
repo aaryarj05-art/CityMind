@@ -13,6 +13,7 @@ from app.models import Area, Dispatch, Hospital, Incident, Resource
 from app.runtime_config import judge_open_access
 from app.schemas.dashboard import DashboardData, DashboardSummary, MapMarker
 from app.seed.seed_data import SIMULATION_DISCLAIMER
+from app.services.bigquery_analytics import export_risk_snapshot
 from app.services.risk_engine import calculate_all_area_risks
 
 ACTIVE_INCIDENTS = {"Reported", "Assigned", "In Progress"}
@@ -70,6 +71,10 @@ def get_dashboard_summary(db: Session) -> DashboardSummary:
     cardiac_ready = db.query(func.count(Hospital.id)).filter(Hospital.cardiac_capability.is_(True)).scalar() or 0
 
     area_risks = calculate_all_area_risks(db, now)
+    active_counts_by_area = Counter(incident.area_id for incident in db.query(Incident).filter(Incident.status.in_(ACTIVE_INCIDENTS)).all())
+    for risk in area_risks:
+        risk["active_incidents"] = active_counts_by_area.get(risk["area_id"], 0)
+    export_risk_snapshot(area_risks, calculated_at=now)
     ranked = sorted(area_risks, key=lambda item: (-item["risk_score"], item["area_id"]))
     average_risk = round(sum(item["risk_score"] for item in area_risks) / len(area_risks), 2) if area_risks else 0.0
     critical_area_count = sum(item["risk_level"] == "Critical" for item in area_risks)
