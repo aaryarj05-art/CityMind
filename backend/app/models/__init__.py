@@ -9,3 +9,4 @@ from .hospital_external_mapping import HospitalExternalMapping
 from .auth import User, AuthenticationAudit
 
 from .security_event import SecurityEvent
+from .citizen_report import CitizenReport, CitizenReportMedia

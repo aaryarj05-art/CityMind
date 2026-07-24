@@ -211,6 +211,25 @@ Normalized APIs:
 - `GET /api/incidents/{id}/confidence`
 
 The evidence drawer shows verification status, confidence, primary source, independently verified publishers, trust reasoning, and a newest-first evidence timeline. Every displayed source includes an original article link. CityMind does not fabricate publishers, government confirmations, or evidence when live providers return no matching results.
+## Citizen Incident Reporting & Eyewitness Evidence
+
+CityMind now includes an additive `User` portal for citizen eyewitness submissions. The dashboard remains visually unchanged; citizen reports are submitted through a separate protected page and then flow into the existing incident evidence drawer as eyewitness evidence.
+
+Backend architecture:
+
+- `CitizenReportService` validates, stores, and associates reports with nearby active incidents.
+- `ReportValidationService` sanitizes descriptions, validates coordinates, and accepts only JPG, JPEG, PNG, and WEBP uploads.
+- `ImageStorageService` stores image evidence under server-side upload storage and exposes only normalized media URLs.
+- `LocationMatchingService` matches reports to active incidents within the configured radius, or creates a new pending `Citizen Report` incident awaiting verification.
+- Evidence confidence treats eyewitness reports as first-class evidence, but single eyewitness submissions remain `PENDING VERIFICATION` until corroborated by another eyewitness report or live external source evidence.
+
+Normalized APIs:
+
+- `POST /api/user/report`
+- `GET /api/user/report/{id}`
+- `GET /api/incidents/{id}/eyewitness`
+
+The evidence drawer displays eyewitness images, reporter location, submission time, distance from the incident, and Pending/Verified status. CityMind never treats a citizen upload as true by itself and does not fabricate corroboration.
 ## Optional BigQuery analytics layer
 
 CityMind can export historical incident, dispatch, AI decision/audit, and risk snapshot events to Google BigQuery for long-term analytics and predictive intelligence. SQLite remains the primary transactional store; BigQuery exports are best-effort and never block API requests.

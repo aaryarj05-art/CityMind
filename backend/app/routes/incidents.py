@@ -10,7 +10,7 @@ from app.dependencies.auth import require_permission
 from app.services.auth_service import AuthenticatedUser
 from app.services.bigquery_analytics import export_incident_event
 from app.services.distance_service import has_valid_coordinates
-from app.services.evidence_service import get_incident_confidence, get_incident_evidence, get_incident_sources
+from app.services.evidence_service import get_incident_confidence, get_incident_evidence, get_incident_eyewitness, get_incident_sources
 from app.services.security_audit import append_security_event
 
 router = APIRouter(prefix="/incidents", tags=["Incidents"])
@@ -100,6 +100,13 @@ def read_incident_sources(incident_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Incident not found")
     return sources
 
+
+@router.get("/{incident_id}/eyewitness", response_model=list[schemas.EyewitnessEvidence])
+def read_incident_eyewitness(incident_id: int, db: Session = Depends(get_db)):
+    eyewitness = get_incident_eyewitness(db, incident_id)
+    if eyewitness is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    return eyewitness
 
 @router.get("/{incident_id}/confidence", response_model=schemas.IncidentConfidence)
 def read_incident_confidence(incident_id: int, db: Session = Depends(get_db)):

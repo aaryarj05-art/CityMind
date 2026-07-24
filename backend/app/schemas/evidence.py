@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.citizen_report import EyewitnessEvidence
+
 
 class EvidenceSource(BaseModel):
     publisher_name: str
@@ -38,6 +40,7 @@ class IncidentEvidence(BaseModel):
     banner: str
     single_source: bool = False
     provider_errors: list[str] = []
+    eyewitness_evidence: list[EyewitnessEvidence] = []
 
 
 class IncidentConfidence(BaseModel):

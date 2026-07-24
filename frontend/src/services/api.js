@@ -49,6 +49,7 @@ export const incidentsAPI = {
   getEvidence: (id) => api.get(`/incidents/${id}/evidence`, { timeout: 12000 }),
   getSources: (id) => api.get(`/incidents/${id}/sources`, { timeout: 12000 }),
   getConfidence: (id) => api.get(`/incidents/${id}/confidence`, { timeout: 12000 }),
+  getEyewitness: (id) => api.get(`/incidents/${id}/eyewitness`, { timeout: 12000 }),
   create: (payload) => api.post('/incidents', payload), update: (id, payload) => api.patch(`/incidents/${id}`, payload),
 };
 export const resourcesAPI = {
@@ -84,6 +85,13 @@ export const demoAPI = { reset: () => api.post('/demo/reset') };
 export const aiAPI = {
   query: (payload) => api.post('/ai/query', payload, { timeout: 125000 }),
   status: () => api.get('/ai/status'),
+};
+export const userAPI = {
+  submitReport: (formData) => api.post('/user/report', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 30000,
+  }),
+  getReport: (id) => api.get(`/user/report/${id}`),
 };
 export const analyticsAPI = { getBigQueryStatus: () => api.get('/analytics/bigquery/status') };
 export const securityAPI = {

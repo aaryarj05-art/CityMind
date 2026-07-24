@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Clock3, ExternalLink, FileText, Loader2, ShieldCheck, X } from 'lucide-react';
+import { AlertTriangle, Camera, CheckCircle2, Clock3, ExternalLink, FileText, Loader2, MapPin, ShieldCheck, X } from 'lucide-react';
 import { incidentsAPI } from '../../services/api';
 import { formatDate } from '../../utils/formatters';
 
@@ -19,6 +19,14 @@ const SourceLink = ({ source, compact = false }) => (
     Open Original Article <ExternalLink className="h-3.5 w-3.5" />
   </a>
 );
+
+const resolveMediaUrl = (url) => {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) return url;
+  const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+  const origin = apiBase.replace(/\/api\/?$/, '');
+  return `${origin}${url}`;
+};
 
 const IncidentEvidenceDrawer = ({ isOpen, onClose, incidentId }) => {
   const [evidence, setEvidence] = useState(null);
@@ -137,6 +145,42 @@ const IncidentEvidenceDrawer = ({ isOpen, onClose, incidentId }) => {
                 )}
               </section>
 
+              {evidence.eyewitness_evidence?.length > 0 && (
+                <section className="space-y-3">
+                  <h4 className="flex items-center gap-2 text-sm font-semibold text-white"><Camera className="h-4 w-4 text-cyan-300" /> Eyewitness Evidence</h4>
+                  <div className="space-y-3">
+                    {evidence.eyewitness_evidence.map((report) => (
+                      <div key={report.report_id} className="rounded-lg border border-navy-700 bg-navy-950/35 p-3">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-100">Report #{report.report_id}</p>
+                            <p className="mt-1 text-xs text-slate-400">{report.description}</p>
+                          </div>
+                          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${report.verification_status === 'Verified' ? 'border-emerald-400/20 bg-emerald-400/10 text-emerald-300' : 'border-amber-400/20 bg-amber-400/10 text-amber-300'}`}>
+                            {report.verification_status}
+                          </span>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
+                          <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-cyan-300" /> {report.readable_address || `${report.latitude.toFixed(5)}, ${report.longitude.toFixed(5)}`}</span>
+                          <span>Submitted: {formatDate(report.submitted_at)}</span>
+                          {report.distance_from_incident_meters !== null && report.distance_from_incident_meters !== undefined && (
+                            <span>{Math.round(report.distance_from_incident_meters)} m from incident</span>
+                          )}
+                        </div>
+                        {report.media?.length > 0 && (
+                          <div className="mt-3 grid grid-cols-2 gap-2">
+                            {report.media.map((media) => (
+                              <a key={media.id} href={resolveMediaUrl(media.media_url)} target="_blank" rel="noopener noreferrer" className="group overflow-hidden rounded-lg border border-navy-700 bg-navy-900">
+                                <img src={resolveMediaUrl(media.media_url)} alt={media.original_filename} className="aspect-video w-full object-cover transition-transform group-hover:scale-[1.02]" />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
               <section className="space-y-3">
                 <h4 className="flex items-center gap-2 text-sm font-semibold text-white"><CheckCircle2 className="h-4 w-4 text-cyan-300" /> Why CityMind Trusts This Incident</h4>
                 <ul className="space-y-2">

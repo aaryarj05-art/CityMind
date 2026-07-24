@@ -13,6 +13,7 @@ import Resources from './pages/Resources';
 import RiskZones from './pages/RiskZones';
 import Settings from './pages/Settings';
 import SecurityOperations from './pages/SecurityOperations';
+import UserPortal from './pages/UserPortal';
 
 const LiveResponseIntelligence = lazy(() => import('./pages/LiveResponseIntelligence'));
 
@@ -34,6 +35,7 @@ function App() {
             <Route path="/live-response" element={secured('traffic.read', <LiveResponseIntelligence />)} />
             <Route path="/dispatches" element={secured('dispatch.read', <Dispatches />)} />
             <Route path="/resources" element={secured('resources.read', <Resources />)} />
+            <Route path="/user" element={secured('dashboard.read', <UserPortal />)} />
             <Route path="/analytics" element={secured('analytics.read', <Analytics />)} />
             <Route path="/settings" element={secured('settings.manage', <Settings />)} />
             <Route path="/security-operations" element={secured('audit.read', <SecurityOperations />)} />

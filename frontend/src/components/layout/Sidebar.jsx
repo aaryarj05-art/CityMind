@@ -11,6 +11,7 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  UserRound,
   Users,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
@@ -60,6 +61,12 @@ const Sidebar = () => {
       path: '/resources',
       icon: Users,
       permission: 'resources.read',
+    },
+    {
+      name: 'User',
+      path: '/user',
+      icon: UserRound,
+      permission: 'dashboard.read',
     },
     {
       name: 'Analytics',

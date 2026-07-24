@@ -8,7 +8,7 @@ from app.database import Base, SessionLocal, engine
 from app.dependencies.auth import require_permission, require_user_or_internal_service
 from app.routes import (
     ai, analytics, areas, auth, complaints, dashboard, demo, dispatch, hospitals,
-    hospitals_google, incidents, maps, resources, risk, security,
+    hospitals_google, incidents, maps, resources, risk, security, user,
 )
 from app.seed.seed_data import seed_db
 from app.runtime_config import allowed_origins, environment_name, validate_api_production_config
@@ -132,3 +132,4 @@ app.include_router(hospitals_google.router, prefix="/api", dependencies=[Depends
 app.include_router(hospitals.router, prefix="/api", dependencies=[Depends(require_permission("hospital_capacity.read"))])
 app.include_router(ai.router)
 app.include_router(security.router, prefix="/api")
+app.include_router(user.router, prefix="/api", dependencies=[Depends(require_permission("dashboard.read"))])
