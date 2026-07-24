@@ -198,8 +198,7 @@ const Login = () => {
       <div className="relative z-10 grid min-h-[calc(100vh-2.25rem)] flex-1 grid-cols-1 lg:grid-cols-[70fr_30fr]">
         <section className="flex min-h-[55vh] flex-col items-center justify-center border-b border-cyan-300/10 bg-[#030914]/95 px-5 py-10 sm:px-8 lg:min-h-0 lg:border-b-0 lg:border-r lg:px-12 lg:py-12">
           <div className="mx-auto flex w-full max-w-2xl flex-col items-center">
-            <div className="login-logo-float relative w-full max-w-[28rem] rounded-[1.75rem] border border-cyan-100/80 bg-white px-6 py-6 shadow-2xl shadow-cyan-950/25 sm:px-10 sm:py-8">
-              <div className="absolute inset-0 rounded-[1.75rem] bg-[linear-gradient(135deg,rgba(255,255,255,0.88),rgba(239,246,255,0.98)_52%,rgba(255,255,255,0.94))]" aria-hidden="true" />
+            <div className="login-logo-float relative w-full max-w-[28rem] rounded-[1.75rem] border border-cyan-100/80 bg-[#fefefe] px-6 py-6 shadow-2xl shadow-cyan-950/25 sm:px-10 sm:py-8">
               <div className="absolute -inset-px rounded-[1.75rem] shadow-[0_0_38px_rgba(34,211,238,0.18)]" aria-hidden="true" />
               <img
                 src="/citymind-logo.png"
