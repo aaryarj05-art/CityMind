@@ -8,6 +8,7 @@ import PriorityBadge from '../components/common/PriorityBadge';
 import Modal from '../components/common/Modal';
 import AllocationPlanModal from '../components/common/AllocationPlanModal';
 import DispatchDetailsDrawer from '../components/common/DispatchDetailsDrawer';
+import IncidentEvidenceDrawer from '../components/common/IncidentEvidenceDrawer';
 import { riskAPI, dispatchAPI } from '../services/api';
 import { formatDate } from '../utils/formatters';
 import { Search, Filter, X, Zap, Brain, Shield, Info, AlertTriangle, Play, Eye, CheckCircle2 } from 'lucide-react';
@@ -29,6 +30,8 @@ const Incidents = () => {
   const [activeDispatch, setActiveDispatch] = useState(null);
   // Dispatch details drawer trigger
   const [selectedDispatchId, setSelectedDispatchId] = useState(null);
+  // Evidence verification drawer trigger
+  const [evidenceIncidentId, setEvidenceIncidentId] = useState(null);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -248,6 +251,19 @@ const Incidents = () => {
                           Generate Plan
                         </button>
                       )}
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEvidenceIncidentId(inc.incident_id);
+                        }}
+                        aria-label={`Open evidence verification for ${inc.title}`}
+                        className="flex cursor-pointer items-center gap-1 rounded-lg border border-cyan-300/20 bg-cyan-400/10 px-3 py-1.5 text-xs font-bold text-cyan-200 shadow-sm transition-colors hover:border-cyan-300/35 hover:bg-cyan-400/15 hover:text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/60"
+                      >
+                        <Shield className="w-3.5 h-3.5" />
+                        Evidence
+                      </button>
 
                       <div className="flex flex-col items-end gap-1">
                         <span className="text-[10px] text-slate-500 font-semibold uppercase">Priority Score</span>
@@ -477,6 +493,12 @@ const Incidents = () => {
         onTransitionSuccess={() => {
           fetchIncidents();
         }}
+      />
+
+      <IncidentEvidenceDrawer
+        isOpen={evidenceIncidentId !== null}
+        incidentId={evidenceIncidentId}
+        onClose={() => setEvidenceIncidentId(null)}
       />
     </PageContainer>
   );
