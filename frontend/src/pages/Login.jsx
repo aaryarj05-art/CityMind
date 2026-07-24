@@ -195,12 +195,12 @@ const Login = () => {
         aria-hidden="true"
       />
 
-      <div className="relative z-10 grid min-h-[calc(100vh-2.25rem)] flex-1 grid-cols-1 lg:grid-cols-[55fr_45fr]">
+      <div className="relative z-10 grid min-h-[calc(100vh-2.25rem)] flex-1 grid-cols-1 lg:grid-cols-[70fr_30fr]">
         <section className="flex min-h-[55vh] flex-col items-center justify-center border-b border-cyan-300/10 bg-[#030914]/95 px-5 py-10 sm:px-8 lg:min-h-0 lg:border-b-0 lg:border-r lg:px-12 lg:py-12">
           <div className="mx-auto flex w-full max-w-2xl flex-col items-center">
-            <div className="login-logo-float relative w-full max-w-[28rem] rounded-[1.75rem] border border-cyan-200/12 bg-white/[0.035] px-6 py-6 shadow-2xl shadow-cyan-950/25 backdrop-blur-xl sm:px-10 sm:py-8">
-              <div className="absolute inset-0 rounded-[1.75rem] bg-[linear-gradient(135deg,rgba(125,211,252,0.13),transparent_36%,rgba(59,130,246,0.08))]" aria-hidden="true" />
-              <div className="absolute -inset-px rounded-[1.75rem] shadow-[0_0_42px_rgba(34,211,238,0.10)]" aria-hidden="true" />
+            <div className="login-logo-float relative w-full max-w-[28rem] rounded-[1.75rem] border border-cyan-100/80 bg-white px-6 py-6 shadow-2xl shadow-cyan-950/25 sm:px-10 sm:py-8">
+              <div className="absolute inset-0 rounded-[1.75rem] bg-[linear-gradient(135deg,rgba(255,255,255,0.88),rgba(239,246,255,0.98)_52%,rgba(255,255,255,0.94))]" aria-hidden="true" />
+              <div className="absolute -inset-px rounded-[1.75rem] shadow-[0_0_38px_rgba(34,211,238,0.18)]" aria-hidden="true" />
               <img
                 src="/citymind-logo.png"
                 alt="CityMind command intelligence platform"
@@ -295,7 +295,7 @@ const Login = () => {
                 <p className="text-[11px] leading-5 text-slate-400">Authentication only: no Google API access scopes are requested. The Google credential is exchanged once and is never retained in browser storage.</p>
               </div>
 
-              <p className="mt-5 text-center text-[10px] leading-4 text-slate-500">CityMind hackathon prototype - Human approval remains required for operational actions</p>
+              <p className="mt-5 text-center text-[10px] leading-4 text-slate-500">CityMind · Human approval remains required for operational actions</p>
             </div>
           </div>
         </section>
