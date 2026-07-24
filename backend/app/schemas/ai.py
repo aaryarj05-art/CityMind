@@ -23,6 +23,11 @@ class AIAuditMetadata(BaseModel):
 class AIQueryResponse(BaseModel):
     session_id: str
     response: str
+    status: str = "ok"
+    source: str | None = None
+    ai_assisted: bool | None = None
+    human_approval_required: bool | None = None
+    note: str | None = None
     agents_used: list[str]
     tools_used: list[str] = []
     grounded: bool

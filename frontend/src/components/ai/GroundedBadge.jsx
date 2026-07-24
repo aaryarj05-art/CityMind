@@ -1,10 +1,14 @@
 import { ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 
-const GroundedBadge = ({ grounded }) => {
+const GroundedBadge = ({ grounded, source }) => {
   const [showTooltip, setShowTooltip] = useState(false);
 
   if (!grounded) return null;
+
+  const tooltipText = source?.startsWith('deterministic_backend')
+    ? 'This response was generated using verified CityMind backend data. Google ADK remains available for complex multi-agent analysis.'
+    : 'This response was generated using verified CityMind backend data and Google ADK agent orchestration.';
 
   return (
     <div className="relative inline-flex">
@@ -19,7 +23,7 @@ const GroundedBadge = ({ grounded }) => {
       </span>
       {showTooltip && (
         <div className="absolute bottom-full left-0 mb-1.5 w-64 p-2 bg-navy-900 border border-navy-600 rounded-lg shadow-xl text-[11px] text-slate-300 z-50 leading-relaxed">
-          This response was generated using verified CityMind backend data and Google ADK agent orchestration.
+          {tooltipText}
         </div>
       )}
     </div>

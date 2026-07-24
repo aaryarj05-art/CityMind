@@ -32,6 +32,12 @@ const AICommandCenter = () => {
     window.dispatchEvent(new CustomEvent('citymind-ai-status-change', { detail: status }));
   }, []);
 
+  const statusFromGateway = (data) => {
+    if (data?.adk_status === 'available') return 'available';
+    if (data?.fast_path_status === 'available') return 'gateway';
+    return 'offline';
+  };
+
   const LOADING_LABELS = [
     'City Operations Coordinator is analyzing...',
     'Checking verified city data...',
@@ -39,20 +45,19 @@ const AICommandCenter = () => {
     'Preparing grounded response...',
   ];
 
-  // Check AI availability on mount via a lightweight health-check style probe
+  // Check AI gateway availability without requiring a long ADK run.
   useEffect(() => {
     const checkAI = async () => {
       try {
-        // Use existing health endpoint to verify backend is up
-        await dashboardAPI.getDashboardData();
-        const current = sessionStorage.getItem('citymind_ai_status') || 'available';
-        if (current === 'offline') {
-          updateGlobalAIStatus('available');
-        } else {
-          updateGlobalAIStatus(current);
-        }
+        const res = await aiAPI.status();
+        updateGlobalAIStatus(statusFromGateway(res.data));
       } catch {
-        updateGlobalAIStatus('offline');
+        try {
+          await dashboardAPI.getDashboardData();
+          updateGlobalAIStatus('gateway');
+        } catch {
+          updateGlobalAIStatus('offline');
+        }
       }
     };
     checkAI();
@@ -141,10 +146,11 @@ const AICommandCenter = () => {
         assurance_level: data.assurance_level,
         assurance_reasons: data.assurance_reasons || [],
         limitations: data.limitations || [],
+              source: data.source,
       };
 
       setMessages(prev => [...prev, assistantMsg]);
-      updateGlobalAIStatus('available');
+      updateGlobalAIStatus(data.source === 'deterministic_backend_adk_fallback' ? 'adk_slow' : data.source === 'deterministic_backend_fast_path' ? 'gateway' : 'available');
     } catch (err) {
       const status = err.response?.status;
       const detail = err.response?.data?.detail;

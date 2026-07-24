@@ -517,16 +517,20 @@ const Dashboard = () => {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
               <span className={`w-2 h-2 rounded-full ${
-                aiStatus === 'available' ? 'bg-emerald-400 animate-pulse' :
+                aiStatus === 'available' || aiStatus === 'gateway' ? 'bg-emerald-400 animate-pulse' :
+                aiStatus === 'adk_slow' ? 'bg-amber-400' :
                 aiStatus === 'processing' ? 'bg-blue-400 animate-pulse' :
                 'bg-red-500'
               }`} />
               <span className={`text-[11px] font-medium ${
-                aiStatus === 'available' ? 'text-emerald-400' :
+                aiStatus === 'available' || aiStatus === 'gateway' ? 'text-emerald-400' :
+                aiStatus === 'adk_slow' ? 'text-amber-400' :
                 aiStatus === 'processing' ? 'text-blue-400' :
                 'text-red-400'
               }`}>
-                {aiStatus === 'available' ? 'AI Available' :
+                {aiStatus === 'available' ? 'ADK Available' :
+                 aiStatus === 'gateway' ? 'AI Gateway Available' :
+                 aiStatus === 'adk_slow' ? 'ADK Slow / Fallback Active' :
                  aiStatus === 'processing' ? 'AI Processing' :
                  'AI Offline'}
               </span>

@@ -319,16 +319,20 @@ const Topbar = ({ title }) => {
         <div className="flex items-center gap-1.5 rounded-full border border-blue-300/10 bg-navy-900/65 px-2 py-1 sm:px-2.5">
           <Sparkles className="w-3.5 h-3.5 text-blue-400" />
           <span className={`w-1.5 h-1.5 rounded-full ${
-            aiStatus === 'available' ? 'bg-emerald-400 animate-pulse' :
+            aiStatus === 'available' || aiStatus === 'gateway' ? 'bg-emerald-400 animate-pulse' :
+                aiStatus === 'adk_slow' ? 'bg-amber-400' :
             aiStatus === 'processing' ? 'bg-blue-400 animate-pulse' :
             'bg-red-500'
           }`} />
           <span className={`hidden sm:inline text-[11px] font-medium ${
-            aiStatus === 'available' ? 'text-emerald-400' :
+            aiStatus === 'available' || aiStatus === 'gateway' ? 'text-emerald-400' :
+                aiStatus === 'adk_slow' ? 'text-amber-400' :
             aiStatus === 'processing' ? 'text-blue-400' :
             'text-red-400'
           }`}>
-            {aiStatus === 'available' ? 'AI Available' :
+            {aiStatus === 'available' ? 'ADK Available' :
+                 aiStatus === 'gateway' ? 'AI Gateway Available' :
+                 aiStatus === 'adk_slow' ? 'ADK Slow / Fallback Active' :
              aiStatus === 'processing' ? 'AI Processing' :
              'AI Offline'}
           </span>

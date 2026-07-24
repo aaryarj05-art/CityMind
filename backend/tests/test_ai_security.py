@@ -106,7 +106,7 @@ def test_successful_ai_response_has_decision_and_audit(client, monkeypatch):
         called.append(kwargs)
         return fake_adk_result()
     monkeypatch.setattr(ai_route, "query_citymind_agents", fake_query)
-    response = client.post("/api/ai/query", headers=headers(token), json={"message": "Summarize city risk"})
+    response = client.post("/api/ai/query", headers=headers(token), json={"message": "Provide a nuanced multi-agent analysis of interdepartmental coordination assumptions."})
     assert response.status_code == 200
     data = response.json()
     assert data["decision_id"].startswith("CM-")

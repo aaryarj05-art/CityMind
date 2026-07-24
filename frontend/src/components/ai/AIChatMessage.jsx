@@ -28,7 +28,7 @@ const AIChatMessage = ({ message }) => {
   return (
     <div className="flex justify-start"><div className="max-w-[85%] space-y-1.5">
       <div className="rounded-xl rounded-tl-sm border border-blue-300/10 bg-navy-900/65 px-4 py-3 shadow-lg shadow-black/10 backdrop-blur space-y-3"><AIResponseRenderer text={message.content} /><SecurityDecisionMeta message={message} /></div>
-      <div className="flex flex-wrap items-center gap-2 px-1"><Bot className="w-3 h-3 text-slate-500" /><span className="text-[10px] text-slate-500">{time}</span>{message.grounded !== undefined && <GroundedBadge grounded={message.grounded} />}</div>
+      <div className="flex flex-wrap items-center gap-2 px-1"><Bot className="w-3 h-3 text-slate-500" /><span className="text-[10px] text-slate-500">{time}</span>{message.grounded !== undefined && <GroundedBadge grounded={message.grounded} source={message.source} />}</div>
       {message.agents_used?.length > 0 && <div className="px-1"><AgentTrace agents={message.agents_used} /></div>}
     </div></div>
   );
