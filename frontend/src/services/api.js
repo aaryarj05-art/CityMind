@@ -46,6 +46,9 @@ export const dashboardAPI = { getSummary: () => api.get('/dashboard/summary'), g
 export const areasAPI = { getAll: () => api.get('/areas'), getById: (id) => api.get(`/areas/${id}`) };
 export const incidentsAPI = {
   getAll: (params) => api.get('/incidents', { params }), getById: (id) => api.get(`/incidents/${id}`),
+  getEvidence: (id) => api.get(`/incidents/${id}/evidence`, { timeout: 12000 }),
+  getSources: (id) => api.get(`/incidents/${id}/sources`, { timeout: 12000 }),
+  getConfidence: (id) => api.get(`/incidents/${id}/confidence`, { timeout: 12000 }),
   create: (payload) => api.post('/incidents', payload), update: (id, payload) => api.patch(`/incidents/${id}`, payload),
 };
 export const resourcesAPI = {

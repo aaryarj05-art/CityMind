@@ -191,6 +191,26 @@ Verification: the complete backend suite passed (`145 passed, 5 warnings`); fron
 
 Known limitations: rate/abuse state is process-local; rule-based detection can have false positives and false negatives; the SQLite chain is tamper-evident rather than immutable; active-session count is reported unavailable because no accurate server-side session registry exists; agent health reflects observed audited activity, not autonomous monitoring; and manual Google login/ADK/Google API flows still require configured credentials and user-controlled sessions.
 
+
+## Incident Evidence & Source Verification
+
+CityMind includes an additive Incident Evidence module that verifies incident records against live external source providers before presenting confidence claims. The dashboard layout is unchanged; each incident card adds an `Evidence` action that opens a source-verification drawer.
+
+Backend architecture:
+
+- `EvidenceAggregator` calls pluggable live providers and continues when one provider fails.
+- Current providers are GDELT Document API and Google News RSS search. Raw third-party payloads are never exposed through CityMind APIs.
+- `ConfidenceCalculator` scores evidence using configurable weights for independent confirmations, report consistency, official confirmations, and publication freshness. Override weights with `CITYMIND_EVIDENCE_CONFIDENCE_WEIGHTS_JSON`.
+- `SourceRankingEngine` selects the primary source by credibility, freshness, completeness, relevance, and independent confirmations.
+- `GovernmentVerificationService` identifies official/government-linked confirmations where available. If none are found, CityMind states that plainly.
+
+Normalized APIs:
+
+- `GET /api/incidents/{id}/evidence`
+- `GET /api/incidents/{id}/sources`
+- `GET /api/incidents/{id}/confidence`
+
+The evidence drawer shows verification status, confidence, primary source, independently verified publishers, trust reasoning, and a newest-first evidence timeline. Every displayed source includes an original article link. CityMind does not fabricate publishers, government confirmations, or evidence when live providers return no matching results.
 ## Optional BigQuery analytics layer
 
 CityMind can export historical incident, dispatch, AI decision/audit, and risk snapshot events to Google BigQuery for long-term analytics and predictive intelligence. SQLite remains the primary transactional store; BigQuery exports are best-effort and never block API requests.

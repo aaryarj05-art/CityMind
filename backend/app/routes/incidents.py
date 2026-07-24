@@ -10,6 +10,7 @@ from app.dependencies.auth import require_permission
 from app.services.auth_service import AuthenticatedUser
 from app.services.bigquery_analytics import export_incident_event
 from app.services.distance_service import has_valid_coordinates
+from app.services.evidence_service import get_incident_confidence, get_incident_evidence, get_incident_sources
 from app.services.security_audit import append_security_event
 
 router = APIRouter(prefix="/incidents", tags=["Incidents"])
@@ -83,6 +84,29 @@ def update_incident(incident_id: int, payload: schemas.IncidentUpdate, request: 
     export_incident_event(incident, area=db.get(models.Area, incident.area_id), source="incident_updated")
     return incident
 
+
+@router.get("/{incident_id}/evidence", response_model=schemas.IncidentEvidence)
+def read_incident_evidence(incident_id: int, db: Session = Depends(get_db)):
+    evidence = get_incident_evidence(db, incident_id)
+    if evidence is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    return evidence
+
+
+@router.get("/{incident_id}/sources", response_model=list[schemas.EvidenceSource])
+def read_incident_sources(incident_id: int, db: Session = Depends(get_db)):
+    sources = get_incident_sources(db, incident_id)
+    if sources is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    return sources
+
+
+@router.get("/{incident_id}/confidence", response_model=schemas.IncidentConfidence)
+def read_incident_confidence(incident_id: int, db: Session = Depends(get_db)):
+    confidence = get_incident_confidence(db, incident_id)
+    if confidence is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    return confidence
 
 @router.get("/{incident_id}", response_model=schemas.Incident)
 def read_incident(incident_id: int, db: Session = Depends(get_db)):
