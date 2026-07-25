@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import uuid
 from dataclasses import dataclass
@@ -20,6 +21,7 @@ from app.models.auth import AuthenticationAudit, User
 CITYMIND_ISSUER = "citymind"
 CITYMIND_AUDIENCE = "citymind-api"
 CITYMIND_ALGORITHM = "HS256"
+logger = logging.getLogger(__name__)
 
 
 class AuthenticationError(Exception):
@@ -37,6 +39,13 @@ class SessionError(Exception):
 class AuthConfigurationError(Exception):
     pass
 
+
+def _mask_client_id(value: str) -> str:
+    if not value:
+        return "missing"
+    if len(value) <= 14:
+        return "configured"
+    return f"{value[:6]}...{value[-8:]}"
 
 @dataclass(frozen=True)
 class AuthenticatedUser:
@@ -63,7 +72,9 @@ def session_minutes() -> int:
 def verify_google_credential(credential: str) -> dict[str, Any]:
     client_id = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "").strip()
     if not client_id:
+        logger.error("Google OAuth verification unavailable: GOOGLE_OAUTH_CLIENT_ID is missing")
         raise AuthConfigurationError("Google authentication is not configured")
+    logger.info("Google OAuth token verification started", extra={"expected_audience": _mask_client_id(client_id)})
     try:
         claims = id_token.verify_oauth2_token(
             credential,
@@ -71,23 +82,31 @@ def verify_google_credential(credential: str) -> dict[str, Any]:
             audience=client_id,
         )
     except Exception as exc:
+        logger.warning("Google OAuth token verification failed", extra={"expected_audience": _mask_client_id(client_id), "reason": "google_verification_failed"}, exc_info=True)
         raise AuthenticationError("google_verification_failed") from exc
 
     now = datetime.now(timezone.utc).timestamp()
     required = ("sub", "email", "email_verified", "aud", "iss", "exp")
     if any(claims.get(name) in (None, "") for name in required):
+        logger.warning("Google OAuth token verification failed", extra={"reason": "missing_required_claim", "audience": _mask_client_id(str(claims.get("aud") or ""))})
         raise AuthenticationError("missing_required_claim")
     if claims["aud"] != client_id:
+        logger.warning("Google OAuth token audience mismatch", extra={"expected_audience": _mask_client_id(client_id), "received_audience": _mask_client_id(str(claims.get("aud") or ""))})
         raise AuthenticationError("wrong_audience")
     if claims["iss"] not in {"accounts.google.com", "https://accounts.google.com"}:
+        logger.warning("Google OAuth token issuer rejected", extra={"reason": "wrong_issuer", "issuer": str(claims.get("iss") or "")})
         raise AuthenticationError("wrong_issuer")
     try:
         if float(claims["exp"]) <= now:
+            logger.warning("Google OAuth token expired", extra={"reason": "expired_google_credential", "exp": claims.get("exp")})
             raise AuthenticationError("expired_google_credential")
     except (TypeError, ValueError) as exc:
+        logger.warning("Google OAuth token expiry invalid", extra={"reason": "invalid_expiry", "exp": claims.get("exp")})
         raise AuthenticationError("invalid_expiry") from exc
     if claims["email_verified"] is not True:
+        logger.warning("Google OAuth token email is not verified", extra={"reason": "email_not_verified", "email": claims.get("email")})
         raise AuthenticationError("email_not_verified")
+    logger.info("Google OAuth token verification succeeded", extra={"audience": _mask_client_id(str(claims.get("aud") or "")), "issuer": claims.get("iss"), "email": claims.get("email")})
     return claims
 
 

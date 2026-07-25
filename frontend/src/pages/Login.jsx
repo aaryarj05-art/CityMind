@@ -14,6 +14,35 @@ import {
 import { useAuth } from '../auth/AuthContext';
 
 const GIS_SCRIPT_ID = 'google-identity-services';
+const GOOGLE_BUTTON_WIDTH = 400;
+
+const maskClientId = (value) => {
+  if (!value) return 'missing';
+  if (value.length <= 14) return 'configured';
+  return `${value.slice(0, 6)}...${value.slice(-8)}`;
+};
+
+const oauthLog = (message, detail = {}) => {
+  console.info('[CityMind OAuth]', message, detail);
+};
+
+const oauthWarn = (message, detail = {}) => {
+  console.warn('[CityMind OAuth]', message, detail);
+};
+
+const getMomentReason = (notification) => {
+  if (!notification) return 'unknown';
+  if (notification.isNotDisplayed?.()) {
+    return notification.getNotDisplayedReason?.() || 'not_displayed';
+  }
+  if (notification.isSkippedMoment?.()) {
+    return notification.getSkippedReason?.() || 'skipped';
+  }
+  if (notification.isDismissedMoment?.()) {
+    return notification.getDismissedReason?.() || 'dismissed';
+  }
+  return 'unknown';
+};
 
 const objectives = [
   { title: 'Risk Prioritization', detail: 'Deterministic intelligence ranks city risk zones.' },
@@ -25,6 +54,8 @@ const objectives = [
 
 const Login = () => {
   const loginModeRef = useRef('admin');
+  const userGoogleButtonRef = useRef(null);
+  const adminGoogleButtonRef = useRef(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -45,8 +76,9 @@ const Login = () => {
     let active = true;
 
     if (!clientId) {
+      oauthWarn('missing client id', { origin: window.location.origin });
       setStatus('error');
-      setError('Google authentication is not configured for this browser.');
+      setError('Google authentication is not configured: VITE_GOOGLE_CLIENT_ID is missing from this frontend build.');
       return undefined;
     }
 
@@ -55,53 +87,97 @@ const Login = () => {
         return;
       }
 
-      window.google.accounts.id.initialize({
-        client_id: clientId,
-        auto_select: false,
-        cancel_on_tap_outside: true,
-
-        callback: async (credentialResponse) => {
-          if (!credentialResponse?.credential) {
-            setStatus('error');
-            setError(
-              'Google did not return a usable identity credential.',
-            );
-            return;
-          }
-
-          setStatus('authenticating');
-          setError('');
-
-          try {
-            await loginWithCredential(
-              credentialResponse.credential,
-            );
-
-            const destination =
-              loginModeRef.current === 'user'
-                ? '/user'
-                : '/';
-
-            navigate(destination, {
-              replace: true,
-            });
-          } catch (authError) {
-            const code = authError.response?.status;
-
-            setError(
-              code === 503
-                ? 'CityMind authentication is temporarily unavailable. Please retry.'
-                : 'Sign-in could not be verified. Please use a valid Google account and retry.',
-            );
-
-            setStatus('error');
-          } finally {
-            setSelectedMode(null);
-          }
-        },
+      oauthLog('initializing Google Identity Services', {
+        clientId: maskClientId(clientId),
+        origin: window.location.origin,
       });
 
-      setStatus('ready');
+      try {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+
+          callback: async (credentialResponse) => {
+            if (!credentialResponse?.credential) {
+              oauthWarn('credential callback missing ID token', {
+                mode: loginModeRef.current,
+                origin: window.location.origin,
+              });
+              setStatus('error');
+              setError(
+                'Google did not return a usable identity credential. Check browser popup/cookie settings and the OAuth client origin.',
+              );
+              return;
+            }
+
+            setSelectedMode(loginModeRef.current);
+            setStatus('authenticating');
+            setError('');
+            oauthLog('credential received; sending to backend', {
+              mode: loginModeRef.current,
+              origin: window.location.origin,
+            });
+
+            try {
+              const user = await loginWithCredential(
+                credentialResponse.credential,
+              );
+
+              oauthLog('backend authentication succeeded', {
+                mode: loginModeRef.current,
+                role: user?.role,
+                department: user?.department,
+              });
+
+              const destination =
+                loginModeRef.current === 'user'
+                  ? '/user'
+                  : '/';
+
+              navigate(destination, {
+                replace: true,
+              });
+            } catch (authError) {
+              const code = authError.response?.status;
+              const detail = authError.response?.data?.detail;
+              const message =
+                typeof detail === 'object'
+                  ? detail.message
+                  : detail;
+
+              oauthWarn('backend authentication failed', {
+                status: code,
+                detail,
+                origin: window.location.origin,
+              });
+
+              setError(
+                message || (code === 503
+                  ? 'CityMind authentication is temporarily unavailable. Confirm GOOGLE_OAUTH_CLIENT_ID and CITYMIND_JWT_SECRET are configured on the backend.'
+                  : 'Google sign-in was rejected by the backend. Confirm the frontend and backend use the same OAuth client ID.'),
+              );
+
+              setStatus('error');
+            } finally {
+              setSelectedMode(null);
+            }
+          },
+        });
+
+
+        setStatus('ready');
+        oauthLog('Google Identity Services ready', {
+          clientId: maskClientId(clientId),
+          origin: window.location.origin,
+        });
+      } catch (oauthError) {
+        oauthWarn('Google Identity Services initialization failed', oauthError);
+        setStatus('error');
+        setError(
+          'Google sign-in could not be initialized. Confirm this exact origin is authorized in Google Cloud Console.',
+        );
+      }
     };
 
     if (window.google?.accounts?.id) {
@@ -132,9 +208,13 @@ const Login = () => {
         () => {
           if (!active) return;
 
+          oauthWarn('Google Identity Services script failed to load', {
+            clientId: maskClientId(clientId),
+            origin: window.location.origin,
+          });
           setStatus('error');
           setError(
-            'Google sign-in could not be loaded. Check the network and retry.',
+            'Google sign-in could not be loaded. Check the network, browser blockers, and access to accounts.google.com.',
           );
         },
         { once: true },
@@ -151,6 +231,36 @@ const Login = () => {
     navigate,
   ]);
 
+  useEffect(() => {
+    if (status !== 'ready' || !window.google?.accounts?.id) return;
+
+    try {
+      [
+        { mode: 'user', ref: userGoogleButtonRef },
+        { mode: 'admin', ref: adminGoogleButtonRef },
+      ].forEach(({ mode, ref }) => {
+        if (!ref.current) return;
+        ref.current.replaceChildren();
+        window.google.accounts.id.renderButton(ref.current, {
+          type: 'standard',
+          theme: 'outline',
+          size: 'large',
+          text: 'signin_with',
+          shape: 'rectangular',
+          logo_alignment: 'left',
+          width: GOOGLE_BUTTON_WIDTH,
+        });
+        oauthLog('Google sign-in button rendered', { mode });
+      });
+    } catch (oauthError) {
+      oauthWarn('Google sign-in button rendering failed', oauthError);
+      setStatus('error');
+      setError(
+        'Google sign-in button could not be prepared. Confirm this origin is authorized in Google Cloud Console.',
+      );
+    }
+  }, [status, retryKey]);
+
   if (!sessionLoading && authenticated) {
     return <Navigate to="/" replace />;
   }
@@ -162,28 +272,42 @@ const Login = () => {
     status === 'loading' ||
     status === 'authenticating';
 
-  const startGoogleLogin = (mode) => {
+  const prepareGoogleLogin = (mode) => {
     loginModeRef.current = mode;
-    setSelectedMode(mode);
     setError('');
+    oauthLog('Google sign-in launch requested', {
+      mode,
+      clientId: maskClientId(clientId),
+      origin: window.location.origin,
+    });
+  };
+
+  const startGoogleLogin = (mode) => {
+    prepareGoogleLogin(mode);
 
     if (!window.google?.accounts?.id) {
+      oauthWarn('Google Identity Services unavailable during click', {
+        mode,
+        origin: window.location.origin,
+      });
       setStatus('loading');
       setRetryKey((value) => value + 1);
       return;
     }
 
+    setSelectedMode(mode);
     window.google.accounts.id.prompt((notification) => {
-      if (
-        notification.isNotDisplayed() ||
-        notification.isSkippedMoment()
-      ) {
-        setSelectedMode(null);
-        setStatus('error');
-        setError(
-          'Google sign-in could not be opened. Please retry.',
-        );
-      }
+      const reason = getMomentReason(notification);
+      oauthWarn('One Tap fallback did not open a credential prompt', {
+        mode,
+        reason,
+        origin: window.location.origin,
+      });
+      setSelectedMode(null);
+      setStatus('error');
+      setError(
+        `Google sign-in could not be opened (${reason}). Confirm this origin is authorized for the OAuth client and browser popups/cookies are allowed.`,
+      );
     });
   };
 
@@ -284,26 +408,52 @@ const Login = () => {
 
                 {!busy && (
                   <>
-                    <button
-                      type="button"
-                      onClick={() => startGoogleLogin('user')}
-                      disabled={Boolean(selectedMode)}
-                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-cyan-200/15 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition hover:border-cyan-200/35 hover:bg-cyan-300/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/60 disabled:cursor-not-allowed disabled:opacity-70"
-                      aria-label="User Login with Google"
+                    <div
+                      className="relative"
+                      onPointerDownCapture={() => prepareGoogleLogin('user')}
+                      onFocusCapture={() => prepareGoogleLogin('user')}
                     >
-                      {selectedMode === 'user' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UserRound className="h-4 w-4" />}
-                      User Login
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => startGoogleLogin('admin')}
-                      disabled={Boolean(selectedMode)}
-                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-blue-300/20 bg-blue-500/15 px-4 py-3 text-sm font-semibold text-blue-50 transition hover:border-blue-200/40 hover:bg-blue-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60 disabled:cursor-not-allowed disabled:opacity-70"
-                      aria-label="Admin Login with Google"
+                      <button
+                        type="button"
+                        onClick={() => startGoogleLogin('user')}
+                        disabled={Boolean(selectedMode)}
+                        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-cyan-200/15 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition hover:border-cyan-200/35 hover:bg-cyan-300/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/60 disabled:cursor-not-allowed disabled:opacity-70 group-hover:border-cyan-200/35 group-hover:bg-cyan-300/15"
+                        aria-label="User Login with Google"
+                      >
+                        {selectedMode === 'user' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UserRound className="h-4 w-4" />}
+                        User Login
+                      </button>
+                      {status === 'ready' && (
+                        <div
+                          ref={userGoogleButtonRef}
+                          className="absolute inset-0 z-10 overflow-hidden rounded-xl opacity-0"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </div>
+                    <div
+                      className="relative"
+                      onPointerDownCapture={() => prepareGoogleLogin('admin')}
+                      onFocusCapture={() => prepareGoogleLogin('admin')}
                     >
-                      {selectedMode === 'admin' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
-                      Admin Login
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => startGoogleLogin('admin')}
+                        disabled={Boolean(selectedMode)}
+                        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-blue-300/20 bg-blue-500/15 px-4 py-3 text-sm font-semibold text-blue-50 transition hover:border-blue-200/40 hover:bg-blue-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60 disabled:cursor-not-allowed disabled:opacity-70 group-hover:border-blue-200/40 group-hover:bg-blue-400/20"
+                        aria-label="Admin Login with Google"
+                      >
+                        {selectedMode === 'admin' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
+                        Admin Login
+                      </button>
+                      {status === 'ready' && (
+                        <div
+                          ref={adminGoogleButtonRef}
+                          className="absolute inset-0 z-10 overflow-hidden rounded-xl opacity-0"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </div>
                   </>
                 )}
               </div>

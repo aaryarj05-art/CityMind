@@ -100,11 +100,13 @@ def test_valid_google_credential_issues_citymind_session(client, monkeypatch):
     (google_claims(email=None), "missing_required_claim"),
     (google_claims(iss="https://evil.example"), "wrong_issuer"),
 ])
-def test_google_claim_rejections_are_generic(client, monkeypatch, claims, reason):
+def test_google_claim_rejections_return_specific_codes(client, monkeypatch, claims, reason):
     monkeypatch.setattr(auth_service.id_token, "verify_oauth2_token", lambda *args, **kwargs: claims)
     response = client.post("/api/auth/google", json={"credential": "mock-token"})
     assert response.status_code == 401
-    assert response.json() == {"detail": "Unable to authenticate"}
+    detail = response.json()["detail"]
+    assert detail["code"] == reason
+    assert detail["message"]
     db = SessionLocal()
     audit = db.query(AuthenticationAudit).order_by(AuthenticationAudit.id.desc()).first()
     assert audit.reason_code == reason
@@ -125,7 +127,9 @@ def test_missing_jwt_secret_fails_safely(client, monkeypatch):
     monkeypatch.setattr(auth_service.id_token, "verify_oauth2_token", lambda *args, **kwargs: google_claims())
     response = client.post("/api/auth/google", json={"credential": "mock-token"})
     assert response.status_code == 503
-    assert response.json() == {"detail": "Authentication service unavailable"}
+    detail = response.json()["detail"]
+    assert detail["code"] == "authentication_not_configured"
+    assert "GOOGLE_OAUTH_CLIENT_ID" in detail["message"]
 
 
 def test_role_mapping_is_explicit_and_unknown_is_guest(monkeypatch):
