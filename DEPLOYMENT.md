@@ -67,6 +67,7 @@ Regular environment variables:
 | `ADK_BASE_URL` | deployed `citymind-adk` service URL |
 | `ENVIRONMENT` | `production` |
 | `CITYMIND_ALLOWED_ORIGINS` | exact deployed frontend origin |
+| `CITYMIND_UPLOAD_DIR` | optional citizen evidence upload directory; defaults to `/tmp/citymind_uploads/citizen_reports` |
 
 `CITYMIND_ALLOWED_ORIGINS` accepts comma-separated exact HTTP(S) origins. Never use `*` with credentialed CORS. For one production frontend, pass one origin to the CMD script. If multiple origins are needed, use a gcloud env YAML file or its custom delimiter syntax so the comma remains part of the value.
 
@@ -108,9 +109,9 @@ After the frontend is deployed:
 
 ## Persistence warning
 
-The API image defaults to `sqlite:////tmp/citymind.db` and seeds a new database at instance startup. Cloud Run's filesystem is ephemeral. Users, auth audits, sessions represented in application state, dispatches, resource/capacity updates, and security/audit events may reset when an instance is stopped or replaced. Scale-out would create separate databases per instance. Minimum instances, concurrency 1, and max instances 1 are operational mitigations onlyâ€”not durability.
+The API image defaults to `sqlite:////tmp/citymind.db` and seeds a new database at instance startup. Citizen evidence uploads default to `/tmp/citymind_uploads/citizen_reports`, or `CITYMIND_UPLOAD_DIR` when configured. Cloud Run's filesystem is ephemeral. Users, auth audits, uploaded media, sessions represented in application state, dispatches, resource/capacity updates, and security/audit events may reset when an instance is stopped or replaced. Scale-out would create separate databases and upload directories per instance. Minimum instances, concurrency 1, and max instances 1 are operational mitigations only-not durability.
 
-Use Cloud SQL (relational migration path) or Firestore (if the data model is intentionally redesigned) for production persistence. This change does not introduce either service.
+Use Cloud SQL for relational data and Google Cloud Storage for durable evidence media in production. This change does not introduce either service.
 
 ## Health and public verification
 

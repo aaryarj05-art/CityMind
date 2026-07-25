@@ -1,5 +1,8 @@
 from datetime import datetime, timedelta, timezone
+from io import BytesIO
 from pathlib import Path
+import shutil
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -8,10 +11,11 @@ from app.database import SessionLocal
 from app.main import app
 from app.models import CitizenReport, CitizenReportMedia, Incident
 from app.schemas.evidence import EvidenceSource
-from app.services.citizen_report_service import CitizenReportService, ImageStorageService
+from app.services.citizen_report_service import DEFAULT_UPLOAD_DIR, STORAGE_ERROR_MESSAGE, CitizenReportService, ImageStorageService, ReportStorageError, resolve_upload_dir
 from app.services.evidence_service import EvidenceAggregator, EvidenceService
 
-TEST_UPLOAD_DIR = Path(__file__).resolve().parents[1] / "test_uploads" / "citizen_reports"
+TEST_UPLOAD_ROOT = Path(__file__).resolve().parents[1] / "test_uploads"
+TEST_UPLOAD_DIR = TEST_UPLOAD_ROOT / "citizen_reports"
 
 
 class FakeProvider:
@@ -49,10 +53,9 @@ def cleanup_database():
 
 
 def cleanup_uploads():
+    if TEST_UPLOAD_ROOT.exists():
+        shutil.rmtree(TEST_UPLOAD_ROOT)
     TEST_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    for child in TEST_UPLOAD_DIR.iterdir():
-        if child.is_file():
-            child.unlink()
 
 
 @pytest.fixture(autouse=True)
@@ -68,12 +71,85 @@ def clean_citizen_reports():
 def client(monkeypatch):
     import app.routes.user as user_route
 
+    monkeypatch.setenv("CITYMIND_UPLOAD_DIR", str(TEST_UPLOAD_DIR))
+
     def service_factory():
         return CitizenReportService(storage=ImageStorageService(base_dir=TEST_UPLOAD_DIR))
 
     monkeypatch.setattr(user_route, "CitizenReportService", service_factory)
     with TestClient(app) as test_client:
         yield test_client
+
+
+def test_default_upload_dir_uses_cloud_run_writable_tmp(monkeypatch):
+    monkeypatch.delenv("CITYMIND_UPLOAD_DIR", raising=False)
+
+    assert resolve_upload_dir() == DEFAULT_UPLOAD_DIR
+    assert ImageStorageService().base_dir == Path("/tmp/citymind_uploads/citizen_reports")
+
+
+def test_upload_dir_can_be_overridden_by_environment(monkeypatch):
+    configured_dir = TEST_UPLOAD_ROOT / "configured" / "citizen_reports"
+    monkeypatch.setenv("CITYMIND_UPLOAD_DIR", str(configured_dir))
+
+    assert resolve_upload_dir() == configured_dir
+    assert ImageStorageService().base_dir == configured_dir
+
+
+def test_image_storage_creates_directory_with_parents_and_exist_ok(monkeypatch):
+    upload_dir = TEST_UPLOAD_ROOT / "nested" / "citizen_reports"
+    calls = []
+    original_mkdir = Path.mkdir
+
+    def spy_mkdir(self, *args, **kwargs):
+        calls.append((self, kwargs))
+        return original_mkdir(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", spy_mkdir)
+    upload = SimpleNamespace(content_type="image/jpeg", filename="evidence.jpg", file=BytesIO(b"fake-jpeg-bytes"))
+
+    stored = ImageStorageService(base_dir=upload_dir).store(upload)
+
+    assert (upload_dir / stored.stored_filename).exists()
+    assert any(path == upload_dir and kwargs.get("parents") is True and kwargs.get("exist_ok") is True for path, kwargs in calls)
+
+
+def test_citizen_report_media_endpoint_serves_stored_upload(client):
+    response, _ = submit_report(client)
+    assert response.status_code == 201
+
+    media_url = response.json()["media"][0]["media_url"]
+    media_response = client.get(media_url)
+
+    assert media_response.status_code == 200
+    assert media_response.content == b"fake-jpeg-bytes"
+
+
+def test_image_storage_permission_error_raises_controlled_error(monkeypatch):
+    def fail_mkdir(self, *args, **kwargs):
+        raise PermissionError("uploads")
+
+    monkeypatch.setattr(Path, "mkdir", fail_mkdir)
+    upload = SimpleNamespace(content_type="image/jpeg", filename="evidence.jpg", file=BytesIO(b"fake-jpeg-bytes"))
+
+    with pytest.raises(ReportStorageError, match=STORAGE_ERROR_MESSAGE):
+        ImageStorageService(base_dir=TEST_UPLOAD_DIR).store(upload)
+
+
+def test_storage_failure_returns_controlled_error(client, monkeypatch):
+    original_mkdir = Path.mkdir
+
+    def fail_upload_mkdir(self, *args, **kwargs):
+        if self == TEST_UPLOAD_DIR:
+            raise PermissionError("uploads")
+        return original_mkdir(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", fail_upload_mkdir)
+    response, _ = submit_report(client)
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == STORAGE_ERROR_MESSAGE
+    assert "PermissionError" not in response.text
 
 
 def active_incident():

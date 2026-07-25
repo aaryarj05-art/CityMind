@@ -219,7 +219,7 @@ Backend architecture:
 
 - `CitizenReportService` validates, stores, and associates reports with nearby active incidents.
 - `ReportValidationService` sanitizes descriptions, validates coordinates, and accepts only JPG, JPEG, PNG, and WEBP uploads.
-- `ImageStorageService` stores image evidence under server-side upload storage and exposes only normalized media URLs.
+- `ImageStorageService` stores image evidence under server-side upload storage and exposes only normalized media URLs. Set `CITYMIND_UPLOAD_DIR` to override the upload directory; Cloud Run defaults to `/tmp/citymind_uploads/citizen_reports`.
 - `LocationMatchingService` matches reports to active incidents within the configured radius, or creates a new pending `Citizen Report` incident awaiting verification.
 - Evidence confidence treats eyewitness reports as first-class evidence, but single eyewitness submissions remain `PENDING VERIFICATION` until corroborated by another eyewitness report or live external source evidence.
 
@@ -248,7 +248,7 @@ The API health endpoint is `GET /api/health`. Production CORS is configured with
 
 Cloud Run packaging and operator commands are documented in [DEPLOYMENT.md](DEPLOYMENT.md). The CMD-compatible scripts under `scripts` build through the correct Dockerfile and deploy only when an operator explicitly runs them. No deployment is performed by repository setup.
 
-Cloud Run local storage is ephemeral. Seed data is initialized when an API instance starts, but users, sessions, dispatches, capacity changes, and security/audit records can reset whenever an instance is replaced. A minimum instance count would not make SQLite durable. Cloud SQL or Firestore is the production persistence path.
+Cloud Run local storage is ephemeral. Seed data is initialized when an API instance starts, and uploaded citizen evidence media defaults to `/tmp/citymind_uploads/citizen_reports`. Users, sessions, uploaded media, dispatches, capacity changes, and security/audit records can reset whenever an instance is replaced. A minimum instance count would not make SQLite or uploaded media durable. Cloud SQL plus Google Cloud Storage is the production persistence path.
 
 ## Final hackathon realism upgrade
 

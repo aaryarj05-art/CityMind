@@ -13,9 +13,11 @@ from app.models import CitizenReport, CitizenReportMedia, Incident
 from app.models.auth import AuthenticationAudit, User
 from app.routes import ai as ai_route
 from app.services import auth_service
+from app.services.citizen_report_service import resolve_upload_dir
 
 pytestmark = pytest.mark.real_auth
 TEST_SECRET = "phase-6-test-secret-that-is-long-and-random-enough"
+TEST_AUTH_UPLOAD_DIR = Path(__file__).resolve().parents[1] / "test_uploads" / "auth_citizen_reports"
 
 
 @pytest.fixture(autouse=True)
@@ -23,6 +25,7 @@ def auth_environment(monkeypatch):
     monkeypatch.setenv("CITYMIND_JWT_SECRET", TEST_SECRET)
     monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_ID", "test-google-client.apps.googleusercontent.com")
     monkeypatch.setenv("CITYMIND_SESSION_MINUTES", "15")
+    monkeypatch.setenv("CITYMIND_UPLOAD_DIR", str(TEST_AUTH_UPLOAD_DIR))
     monkeypatch.setenv("CITYMIND_ROLE_MAPPINGS_JSON", json.dumps({
         "admin@example.com": {"role": "DemoAdmin", "department": "CityMind Demo"}
     }))
@@ -293,7 +296,7 @@ def test_demo_user_can_submit_and_read_citizen_report_but_not_admin_routes(clien
     try:
         media_rows = db.query(CitizenReportMedia).join(CitizenReport).filter(CitizenReport.id == payload["id"]).all()
         for media in media_rows:
-            path = Path("uploads/citizen_reports") / media.stored_filename
+            path = resolve_upload_dir() / media.stored_filename
             path.unlink(missing_ok=True)
         db.query(CitizenReportMedia).filter(CitizenReportMedia.id.in_([media.id for media in media_rows])).delete(synchronize_session=False)
         db.query(CitizenReport).filter(CitizenReport.id == payload["id"]).delete(synchronize_session=False)

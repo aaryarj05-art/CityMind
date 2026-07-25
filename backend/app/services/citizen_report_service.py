@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import uuid
 from datetime import datetime, timezone
@@ -27,10 +28,26 @@ MAX_FILE_BYTES = 5 * 1024 * 1024
 MAX_DESCRIPTION_LENGTH = 500
 MAX_ADDRESS_LENGTH = 200
 MATCH_RADIUS_KM = 1.0
+DEFAULT_UPLOAD_DIR = Path("/tmp/citymind_uploads/citizen_reports")
+UPLOAD_DIR_ENV_VAR = "CITYMIND_UPLOAD_DIR"
+STORAGE_ERROR_MESSAGE = "Evidence upload could not be stored. Please retry."
 
 
 class ReportValidationError(ValueError):
     pass
+
+
+class ReportStorageError(RuntimeError):
+    pass
+
+
+def resolve_upload_dir(base_dir: str | Path | None = None) -> Path:
+    if base_dir is not None:
+        return Path(base_dir)
+    configured_dir = os.getenv(UPLOAD_DIR_ENV_VAR)
+    if configured_dir:
+        return Path(configured_dir)
+    return DEFAULT_UPLOAD_DIR
 
 
 @dataclass(frozen=True)
@@ -76,27 +93,35 @@ class ReportValidationService:
 
 
 class ImageStorageService:
-    def __init__(self, base_dir: str | Path = "uploads/citizen_reports"):
-        self.base_dir = Path(base_dir)
+    def __init__(self, base_dir: str | Path | None = None):
+        self.base_dir = resolve_upload_dir(base_dir)
 
     def store(self, upload: UploadFile) -> StoredUpload:
         extension = ALLOWED_CONTENT_TYPES.get(upload.content_type)
         if extension is None:
             raise ReportValidationError("Unsupported image format")
-        self.base_dir.mkdir(parents=True, exist_ok=True)
         stored_filename = f"{uuid.uuid4().hex}{extension}"
         target = self.base_dir / stored_filename
         size = 0
-        with target.open("wb") as output:
-            while True:
-                chunk = upload.file.read(1024 * 1024)
-                if not chunk:
-                    break
-                size += len(chunk)
-                if size > MAX_FILE_BYTES:
-                    target.unlink(missing_ok=True)
-                    raise ReportValidationError("Each uploaded image must be 5 MB or smaller")
-                output.write(chunk)
+        try:
+            self.base_dir.mkdir(parents=True, exist_ok=True)
+            with target.open("wb") as output:
+                while True:
+                    chunk = upload.file.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    size += len(chunk)
+                    if size > MAX_FILE_BYTES:
+                        target.unlink(missing_ok=True)
+                        raise ReportValidationError("Each uploaded image must be 5 MB or smaller")
+                    output.write(chunk)
+        except OSError as exc:
+            try:
+                target.unlink(missing_ok=True)
+            except OSError:
+                logger.warning("Could not remove partial citizen report upload", exc_info=True, extra={"stored_filename": stored_filename})
+            logger.exception("Citizen report upload storage failed", extra={"upload_dir": str(self.base_dir), "stored_filename": stored_filename})
+            raise ReportStorageError(STORAGE_ERROR_MESSAGE) from exc
         logger.info("Citizen report upload stored", extra={"stored_filename": stored_filename, "size_bytes": size, "content_type": upload.content_type})
         return StoredUpload(
             original_filename=Path(upload.filename or "incident-image").name,
