@@ -48,3 +48,20 @@ test('sidebar limits user mode to Overview and User', () => {
   assert.match(sidebar, /loginMode === 'user'/);
   assert.match(sidebar, /item\.path === '\/' \|\| item\.path === '\/user'/);
 });
+
+import { resolveMediaUrl } from '../utils/media.js';
+
+test('media urls resolve against the backend origin', () => {
+  assert.equal(resolveMediaUrl('/api/user/report-media/example.jpg'), 'http://localhost:8000/api/user/report-media/example.jpg');
+  assert.equal(resolveMediaUrl('https://cdn.example.test/example.jpg'), 'https://cdn.example.test/example.jpg');
+});
+
+test('citizen evidence form hides manual coordinates but preserves backend payload fields', () => {
+  const portal = fs.readFileSync(new URL('../pages/UserPortal.jsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(portal, />Latitude</);
+  assert.doesNotMatch(portal, />Longitude</);
+  assert.doesNotMatch(portal, /Enter valid latitude and longitude values/);
+  assert.match(portal, /<EvidenceLocationPicker/);
+  assert.match(portal, /formData\.append\('latitude', String\(location\.latitude\)\)/);
+  assert.match(portal, /formData\.append\('longitude', String\(location\.longitude\)\)/);
+});

@@ -9,9 +9,10 @@ import Modal from '../components/common/Modal';
 import AllocationPlanModal from '../components/common/AllocationPlanModal';
 import DispatchDetailsDrawer from '../components/common/DispatchDetailsDrawer';
 import IncidentEvidenceDrawer from '../components/common/IncidentEvidenceDrawer';
-import { riskAPI, dispatchAPI } from '../services/api';
+import { riskAPI, dispatchAPI, incidentsAPI } from '../services/api';
 import { formatDate } from '../utils/formatters';
-import { Search, Filter, X, Zap, Brain, Shield, Info, AlertTriangle, Play, Eye, CheckCircle2 } from 'lucide-react';
+import { resolveMediaUrl } from '../utils/media';
+import { Search, Filter, X, Zap, Brain, Shield, Info, AlertTriangle, Play, Eye, CheckCircle2, Camera } from 'lucide-react';
 
 const Incidents = () => {
   const [incidents, setIncidents] = useState([]);
@@ -23,6 +24,7 @@ const Incidents = () => {
   const [incidentDetails, setIncidentDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState(null);
+  const [incidentEyewitness, setIncidentEyewitness] = useState([]);
 
   // Allocation plan modal trigger
   const [allocationIncidentId, setAllocationIncidentId] = useState(null);
@@ -66,6 +68,7 @@ const Incidents = () => {
     if (!selectedIncidentId) {
       setIncidentDetails(null);
       setActiveDispatch(null);
+      setIncidentEyewitness([]);
       return;
     }
 
@@ -74,11 +77,13 @@ const Incidents = () => {
       setDetailsError(null);
       setActiveDispatch(null);
       try {
-        const [incRes, dispRes] = await Promise.all([
+        const [incRes, dispRes, eyewitnessRes] = await Promise.all([
           riskAPI.getIncidentById(selectedIncidentId),
-          dispatchAPI.getAll({ incident_id: selectedIncidentId, active_only: true })
+          dispatchAPI.getAll({ incident_id: selectedIncidentId, active_only: true }),
+          incidentsAPI.getEyewitness(selectedIncidentId).catch(() => ({ data: [] })),
         ]);
         setIncidentDetails(incRes.data);
+        setIncidentEyewitness(eyewitnessRes.data || []);
         if (dispRes.data && dispRes.data.length > 0) {
           setActiveDispatch(dispRes.data[0]);
         }
@@ -105,6 +110,12 @@ const Incidents = () => {
       );
     });
   }, [incidents, search]);
+
+  const incidentEvidenceMedia = React.useMemo(() => (
+    incidentEyewitness.flatMap((report) => (
+      (report.media || []).map((media) => ({ ...media, reportId: report.report_id }))
+    ))
+  ), [incidentEyewitness]);
 
   const clearFilters = () => {
     setSearch('');
@@ -448,6 +459,21 @@ const Incidents = () => {
               </div>
             </div>
 
+
+            {incidentEvidenceMedia.length > 0 && (
+              <div className="bg-navy-900/40 border border-navy-700/50 rounded-xl p-5">
+                <h4 className="text-slate-400 font-semibold text-xs uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  <Camera className="w-4 h-4 text-cyan-300" /> Uploaded Evidence
+                </h4>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {incidentEvidenceMedia.map((media) => (
+                    <a key={media.id} href={resolveMediaUrl(media.media_url)} target="_blank" rel="noopener noreferrer" className="group overflow-hidden rounded-lg border border-navy-700 bg-navy-950">
+                      <img src={resolveMediaUrl(media.media_url)} alt={media.original_filename} className="aspect-video w-full object-cover transition-transform group-hover:scale-[1.02]" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="flex justify-end gap-3 pt-4 border-t border-navy-700/50">
               <button 
                 onClick={() => setSelectedIncidentId(null)}

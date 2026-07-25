@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Camera, CheckCircle2, ImagePlus, Loader2, MapPin, Send, X } from 'lucide-react';
+import { AlertTriangle, Camera, CheckCircle2, ImagePlus, Loader2, Send, X } from 'lucide-react';
 import PageContainer from '../components/layout/PageContainer';
+import EvidenceLocationPicker from '../components/maps/EvidenceLocationPicker';
 import { userAPI } from '../services/api';
-
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+import { resolveMediaUrl } from '../utils/media';
 
 const UserPortal = () => {
   const [description, setDescription] = useState('');
-  const [latitude, setLatitude] = useState('12.2958');
-  const [longitude, setLongitude] = useState('76.6394');
-  const [readableAddress, setReadableAddress] = useState('');
+  const [location, setLocation] = useState(null);
   const [files, setFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -23,19 +21,12 @@ const UserPortal = () => {
   }, [files]);
 
   const canSubmit = useMemo(() => (
-    description.trim().length > 0 && readableAddress.trim().length > 0 && files.length > 0 && latitude !== '' && longitude !== '' && !submitting
-  ), [description, readableAddress, files.length, latitude, longitude, submitting]);
+    description.trim().length > 0 && Boolean(location?.readableAddress) && files.length > 0 && !submitting
+  ), [description, files.length, location, submitting]);
 
   const handleFiles = (event) => {
-    const selected = Array.from(event.target.files || []);
     setError('');
-    const invalid = selected.find((file) => !ACCEPTED_TYPES.includes(file.type));
-    if (invalid) {
-      setFiles([]);
-      setError('Upload JPG, JPEG, PNG, or WEBP incident images only.');
-      return;
-    }
-    setFiles(selected);
+    setFiles(Array.from(event.target.files || []));
   };
 
   const removeFile = (name) => {
@@ -46,17 +37,17 @@ const UserPortal = () => {
     event.preventDefault();
     setError('');
     setResult(null);
-    const lat = Number(latitude);
-    const lng = Number(longitude);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      setError('Enter valid latitude and longitude values.');
+
+    if (!location) {
+      setError('Share current location or select the incident location on the map.');
       return;
     }
+
     const formData = new FormData();
     formData.append('description', description.trim());
-    formData.append('latitude', String(lat));
-    formData.append('longitude', String(lng));
-    formData.append('readable_address', readableAddress.trim());
+    formData.append('latitude', String(location.latitude));
+    formData.append('longitude', String(location.longitude));
+    formData.append('readable_address', location.readableAddress);
     files.forEach((file) => formData.append('images', file));
 
     setSubmitting(true);
@@ -64,7 +55,7 @@ const UserPortal = () => {
       const { data } = await userAPI.submitReport(formData);
       setResult(data);
       setDescription('');
-      setReadableAddress('');
+      setLocation(null);
       setFiles([]);
     } catch (err) {
       setError(err.response?.data?.detail || err.message || 'Unable to submit eyewitness report.');
@@ -103,40 +94,11 @@ const UserPortal = () => {
               <span className="mt-1 block text-xs text-slate-500">{description.length}/500 characters</span>
             </label>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="block">
-                <span className="text-sm font-semibold text-slate-200">Latitude</span>
-                <input
-                  value={latitude}
-                  onChange={(event) => setLatitude(event.target.value)}
-                  inputMode="decimal"
-                  className="mt-2 w-full rounded-lg border border-navy-700 bg-navy-950 px-3 py-2 text-sm text-white outline-none transition-colors focus:border-cyan-400"
-                />
-              </label>
-              <label className="block">
-                <span className="text-sm font-semibold text-slate-200">Longitude</span>
-                <input
-                  value={longitude}
-                  onChange={(event) => setLongitude(event.target.value)}
-                  inputMode="decimal"
-                  className="mt-2 w-full rounded-lg border border-navy-700 bg-navy-950 px-3 py-2 text-sm text-white outline-none transition-colors focus:border-cyan-400"
-                />
-              </label>
-            </div>
-
-            <label className="block">
-              <span className="text-sm font-semibold text-slate-200">Readable Address</span>
-              <div className="relative mt-2">
-                <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <input
-                  value={readableAddress}
-                  onChange={(event) => setReadableAddress(event.target.value)}
-                  className="w-full rounded-lg border border-navy-700 bg-navy-950 py-2 pl-9 pr-3 text-sm text-white outline-none transition-colors placeholder:text-slate-500 focus:border-cyan-400"
-                  placeholder="Example: Sayyaji Rao Road near Devaraja Market"
-                  required
-                />
-              </div>
-            </label>
+            <EvidenceLocationPicker
+              location={location}
+              onLocationChange={setLocation}
+              disabled={submitting}
+            />
           </section>
 
           <section className="space-y-4 rounded-xl border border-navy-700 bg-navy-800 p-5">
@@ -177,6 +139,15 @@ const UserPortal = () => {
                   <span>{result.verification_status}</span>
                   <span>{result.match_status}</span>
                 </div>
+                {result.media?.length > 0 && (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {result.media.map((media) => (
+                      <a key={media.id} href={resolveMediaUrl(media.media_url)} target="_blank" rel="noopener noreferrer" className="group overflow-hidden rounded-lg border border-emerald-300/20 bg-navy-950/50">
+                        <img src={resolveMediaUrl(media.media_url)} alt={media.original_filename} className="aspect-video w-full object-cover transition-transform group-hover:scale-[1.02]" />
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

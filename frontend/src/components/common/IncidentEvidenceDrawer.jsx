@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, Camera, CheckCircle2, Clock3, ExternalLink, FileText, Loader2, MapPin, ShieldCheck, X } from 'lucide-react';
 import { incidentsAPI } from '../../services/api';
 import { formatDate } from '../../utils/formatters';
+import { resolveMediaUrl } from '../../utils/media';
 
 const statusTone = (status) => {
   if (status === 'VERIFIED') return 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300';
@@ -20,13 +21,6 @@ const SourceLink = ({ source, compact = false }) => (
   </a>
 );
 
-const resolveMediaUrl = (url) => {
-  if (!url) return '';
-  if (/^https?:\/\//i.test(url)) return url;
-  const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
-  const origin = apiBase.replace(/\/api\/?$/, '');
-  return `${origin}${url}`;
-};
 
 const IncidentEvidenceDrawer = ({ isOpen, onClose, incidentId }) => {
   const [evidence, setEvidence] = useState(null);
