@@ -24,6 +24,12 @@ class CitizenReportResponse(BaseModel):
     match_status: str
     distance_to_incident_meters: float | None = None
     submitted_at: datetime
+    incident_title: str | None = None
+    incident_category: str | None = None
+    incident_severity: str | None = None
+    incident_status: str | None = None
+    incident_reported_at: datetime | None = None
+    incident_updated_at: datetime | None = None
     media: list[CitizenReportMedia] = []
     model_config = ConfigDict(from_attributes=True)
 

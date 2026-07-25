@@ -182,3 +182,40 @@ def test_evidence_service_marks_eyewitness_verified_when_corroborated(client):
     assert evidence.verified_by[0].publisher_name == "The Hindu"
     assert evidence.eyewitness_evidence[0].verification_status == "Verified"
     assert any("corroborated" in reason for reason in evidence.trust_reasons)
+
+def test_citizen_report_response_tracks_linked_incident_lifecycle(client):
+    response, incident_id = submit_report(client)
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["incident_id"] == incident_id
+    assert payload["incident_status"] in {"Reported", "Assigned", "In Progress"}
+    assert payload["incident_title"]
+    assert payload["incident_reported_at"]
+    assert payload["incident_updated_at"]
+
+    db = SessionLocal()
+    try:
+        incident = db.get(Incident, incident_id)
+        incident.status = "In Progress"
+        db.commit()
+    finally:
+        db.close()
+
+    status_response = client.get(f"/api/user/report/{payload['id']}")
+
+    assert status_response.status_code == 200
+    refreshed = status_response.json()
+    assert refreshed["incident_status"] == "In Progress"
+    assert refreshed["verification_status"] == "Pending Verification"
+
+
+def test_dashboard_recent_incidents_surfaces_matched_citizen_report(client):
+    response, incident_id = submit_report(client)
+
+    assert response.status_code == 201
+    dashboard = client.get("/api/dashboard")
+
+    assert dashboard.status_code == 200
+    recent_incidents = dashboard.json()["recent_incidents"]
+    assert recent_incidents[0]["id"] == incident_id

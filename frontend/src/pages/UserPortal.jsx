@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Camera, CheckCircle2, ImagePlus, Loader2, Send, X } from 'lucide-react';
+import { AlertTriangle, Camera, CheckCircle2, Clock3, ImagePlus, Loader2, MapPin, Send, X } from 'lucide-react';
 import PageContainer from '../components/layout/PageContainer';
 import EvidenceLocationPicker from '../components/maps/EvidenceLocationPicker';
 import { userAPI } from '../services/api';
 import { resolveMediaUrl } from '../utils/media';
+import { formatDate } from '../utils/formatters';
+
+const STATUS_REFRESH_MS = 15000;
 
 const UserPortal = () => {
   const [description, setDescription] = useState('');
@@ -19,6 +22,24 @@ const UserPortal = () => {
     setPreviews(urls);
     return () => urls.forEach((item) => URL.revokeObjectURL(item.url));
   }, [files]);
+
+  useEffect(() => {
+    if (!result?.id) return undefined;
+    let active = true;
+    const refreshStatus = async () => {
+      try {
+        const { data } = await userAPI.getReport(result.id);
+        if (active) setResult(data);
+      } catch (err) {
+        console.warn('[CityMind Citizen Report] status refresh failed', err);
+      }
+    };
+    const timer = window.setInterval(refreshStatus, STATUS_REFRESH_MS);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [result?.id]);
 
   const canSubmit = useMemo(() => (
     description.trim().length > 0 && Boolean(location?.readableAddress) && files.length > 0 && !submitting
@@ -131,13 +152,31 @@ const UserPortal = () => {
             {result && (
               <div className="rounded-lg border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-100">
                 <div className="flex items-center gap-2 font-semibold">
-                  <CheckCircle2 className="h-4 w-4" /> Report submitted for verification
+                  <CheckCircle2 className="h-4 w-4" /> Incident submitted successfully.
                 </div>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-emerald-50/80">
+                <div className="mt-3 grid gap-2 text-xs text-emerald-50/80 sm:grid-cols-2">
                   <span>Report #{result.id}</span>
                   <span>Incident #{result.incident_id}</span>
-                  <span>{result.verification_status}</span>
-                  <span>{result.match_status}</span>
+                  <span>Verification: <strong className="text-emerald-50">{result.verification_status}</strong></span>
+                  <span>Incident status: <strong className="text-emerald-50">{result.incident_status || 'Reported'}</strong></span>
+                  {result.incident_severity && <span>Severity: <strong className="text-emerald-50">{result.incident_severity}</strong></span>}
+                  <span>Match: <strong className="text-emerald-50">{result.match_status}</strong></span>
+                </div>
+                <div className="mt-3 space-y-2 rounded-lg border border-emerald-300/15 bg-navy-950/35 p-3 text-xs text-slate-300">
+                  <div className="flex items-center gap-2">
+                    <Clock3 className="h-3.5 w-3.5 text-emerald-300" />
+                    <span>Submitted: {formatDate(result.submitted_at)}</span>
+                  </div>
+                  {result.incident_updated_at && (
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
+                      <span>Latest status update: {formatDate(result.incident_updated_at)}</span>
+                    </div>
+                  )}
+                  <div className="flex items-start gap-2">
+                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-300" />
+                    <span>{result.readable_address || `${Number(result.latitude).toFixed(5)}, ${Number(result.longitude).toFixed(5)}`}</span>
+                  </div>
                 </div>
                 {result.media?.length > 0 && (
                   <div className="mt-3 grid grid-cols-2 gap-2">

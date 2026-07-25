@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import uuid
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -131,10 +132,12 @@ class CitizenReportService:
 
     def submit_report(self, db: Session, *, description: str, latitude: float, longitude: float, readable_address: str | None, files: list[UploadFile]) -> CitizenReport:
         description = self.validator.sanitize_description(description)
+        readable_address = self.validator.sanitize_address(readable_address)
         self.validator.validate_location(latitude, longitude)
         uploads = self.validator.validate_files(files)
         stored_files = [self.storage.store(upload) for upload in uploads]
         incident, distance_km = self.matcher.nearest_incident(db, latitude, longitude)
+        submitted_at = datetime.now(timezone.utc)
         match_status = "matched"
         if incident is None:
             area = self.matcher.nearest_area(db, latitude, longitude)
@@ -154,6 +157,7 @@ class CitizenReportService:
             match_status = "new_pending_incident"
             distance_meters = 0.0
         else:
+            incident.updated_at = submitted_at
             distance_meters = round((distance_km or 0.0) * 1000, 2)
 
         report = CitizenReport(
@@ -165,6 +169,7 @@ class CitizenReportService:
             verification_status="Pending Verification",
             match_status=match_status,
             distance_to_incident_meters=distance_meters,
+            submitted_at=submitted_at,
         )
         db.add(report)
         db.flush()

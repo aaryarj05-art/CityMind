@@ -50,7 +50,22 @@ test('sidebar limits user mode to Overview and User', () => {
 });
 
 import { resolveMediaUrl } from '../utils/media.js';
+import { resolveApiBaseUrl } from '../utils/apiBase.js';
 
+
+test('deployed frontend without env falls back to deployed API origin', () => {
+  const originalWindow = globalThis.window;
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: { location: { hostname: 'citymind-frontend-440231657585.asia-south1.run.app' } },
+  });
+  try {
+    assert.equal(resolveApiBaseUrl(), 'https://citymind-api-440231657585.asia-south1.run.app/api');
+  } finally {
+    if (originalWindow === undefined) delete globalThis.window;
+    else Object.defineProperty(globalThis, 'window', { configurable: true, value: originalWindow });
+  }
+});
 test('media urls resolve against the backend origin', () => {
   assert.equal(resolveMediaUrl('/api/user/report-media/example.jpg'), 'http://localhost:8000/api/user/report-media/example.jpg');
   assert.equal(resolveMediaUrl('https://cdn.example.test/example.jpg'), 'https://cdn.example.test/example.jpg');
@@ -64,4 +79,6 @@ test('citizen evidence form hides manual coordinates but preserves backend paylo
   assert.match(portal, /<EvidenceLocationPicker/);
   assert.match(portal, /formData\.append\('latitude', String\(location\.latitude\)\)/);
   assert.match(portal, /formData\.append\('longitude', String\(location\.longitude\)\)/);
+  assert.match(portal, /Incident submitted successfully\./);
+  assert.match(portal, /userAPI\.getReport\(result\.id\)/);
 });

@@ -133,7 +133,7 @@ def get_dashboard_summary(db: Session) -> DashboardSummary:
 def get_dashboard_data(db: Session) -> DashboardData:
     summary = get_dashboard_summary(db)
     priority_zones = db.query(Area).order_by(Area.operational_score.desc()).limit(5).all()
-    recent_incidents = db.query(Incident).order_by(Incident.reported_at.desc()).limit(10).all()
+    recent_incidents = db.query(Incident).order_by(Incident.updated_at.desc(), Incident.reported_at.desc()).limit(10).all()
     hospitals = db.query(Hospital).order_by(Hospital.name).limit(8).all()
     resource_summary = {key: {"total": values["total"], "available": values["available"],
         "readiness_percent": values["readiness_percent"]}

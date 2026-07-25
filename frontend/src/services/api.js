@@ -1,9 +1,10 @@
 import axios from 'axios';
 import { clearSession, getAccessToken } from '../auth/authStorage.js';
 import { buildLiveHospitalRankingPayload } from './hospitalPayload.js';
+import { resolveApiBaseUrl } from '../utils/apiBase.js';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
+  baseURL: resolveApiBaseUrl(),
   headers: { 'Content-Type': 'application/json' },
 });
 

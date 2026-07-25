@@ -22,6 +22,31 @@ class CitizenReport(Base):
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
     media = relationship("CitizenReportMedia", cascade="all, delete-orphan", back_populates="report")
+    incident = relationship("Incident")
+
+    @property
+    def incident_title(self):
+        return self.incident.title if self.incident else None
+
+    @property
+    def incident_category(self):
+        return self.incident.category if self.incident else None
+
+    @property
+    def incident_severity(self):
+        return self.incident.severity if self.incident else None
+
+    @property
+    def incident_status(self):
+        return self.incident.status if self.incident else None
+
+    @property
+    def incident_reported_at(self):
+        return self.incident.reported_at if self.incident else None
+
+    @property
+    def incident_updated_at(self):
+        return self.incident.updated_at if self.incident else None
 
 
 class CitizenReportMedia(Base):
