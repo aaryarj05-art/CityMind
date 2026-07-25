@@ -14,7 +14,7 @@ import {
 import { useAuth } from '../auth/AuthContext';
 
 const GIS_SCRIPT_ID = 'google-identity-services';
-const GOOGLE_BUTTON_WIDTH = 400;
+const GOOGLE_BUTTON_WIDTH = 240;
 
 
 const maskClientId = (value) => {
@@ -68,7 +68,14 @@ const Login = () => {
       origin: window.location.origin,
     });
 
+
+    const dismissStaleAccessDenied = () => {
+      window.dispatchEvent(new CustomEvent('citymind-access-denied-clear'));
+    };
+    dismissStaleAccessDenied();
+    const staleAccessDeniedTimer = window.setTimeout(dismissStaleAccessDenied, 250);
     return () => {
+      window.clearTimeout(staleAccessDeniedTimer);
       if (credentialTimeoutRef.current) {
         window.clearTimeout(credentialTimeoutRef.current);
       }
@@ -421,7 +428,7 @@ const Login = () => {
                 </div>
               )}
 
-              <div className="mt-7 flex min-h-12 flex-col gap-3" aria-label="Sign in with Google" aria-busy={busy}>
+              <div className="mt-8 flex min-h-12 flex-col gap-4" aria-label="Sign in with Google" aria-busy={busy}>
                 {busy && (
                   <div className="flex items-center justify-center gap-2 text-sm text-slate-400">
                     <LoaderCircle className="h-5 w-5 animate-spin" />
@@ -431,28 +438,38 @@ const Login = () => {
 
                 {!busy && (
                   <>
-                    <div className="rounded-xl border border-cyan-200/15 bg-cyan-400/10 p-3 transition hover:border-cyan-200/35 hover:bg-cyan-300/15">
-                      <div className="mb-3 flex items-center justify-center gap-2 text-sm font-semibold text-cyan-50">
-                        {selectedMode === 'user' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UserRound className="h-4 w-4" />}
-                        User Login
+                    <div className="rounded-xl border border-cyan-200/15 bg-white/[0.045] p-4 shadow-lg shadow-black/10 transition hover:border-cyan-200/35 hover:bg-cyan-300/10 focus-within:border-cyan-200/40 focus-within:ring-2 focus-within:ring-cyan-300/30">
+                      <div className="mb-4 flex items-start gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-cyan-200/15 bg-cyan-300/10 text-cyan-100">
+                          {selectedMode === 'user' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UserRound className="h-4 w-4" />}
+                        </span>
+                        <div>
+                          <h3 className="text-sm font-semibold text-cyan-50">User Access</h3>
+                          <p className="mt-1 text-xs leading-5 text-slate-400">For citizens submitting eyewitness reports and viewing city overview.</p>
+                        </div>
                       </div>
                       <div
                         ref={userGoogleButtonRef}
-                        className="citymind-google-button flex min-h-10 justify-center"
-                        aria-label="User Login with Google"
+                        className="citymind-google-button flex min-h-10 justify-center py-1"
+                        aria-label="User Access with Google"
                         onMouseEnter={() => { loginModeRef.current = 'user'; }}
                         onFocusCapture={() => { loginModeRef.current = 'user'; }}
                       />
                     </div>
-                    <div className="rounded-xl border border-blue-300/20 bg-blue-500/15 p-3 transition hover:border-blue-200/40 hover:bg-blue-400/20">
-                      <div className="mb-3 flex items-center justify-center gap-2 text-sm font-semibold text-blue-50">
-                        {selectedMode === 'admin' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
-                        Admin Login
+                    <div className="rounded-xl border border-blue-300/20 bg-white/[0.045] p-4 shadow-lg shadow-black/10 transition hover:border-blue-200/40 hover:bg-blue-400/10 focus-within:border-blue-200/45 focus-within:ring-2 focus-within:ring-blue-300/30">
+                      <div className="mb-4 flex items-start gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-blue-200/20 bg-blue-300/10 text-blue-100">
+                          {selectedMode === 'admin' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
+                        </span>
+                        <div>
+                          <h3 className="text-sm font-semibold text-blue-50">Admin Access</h3>
+                          <p className="mt-1 text-xs leading-5 text-slate-400">For operators accessing the full CityMind command center.</p>
+                        </div>
                       </div>
                       <div
                         ref={adminGoogleButtonRef}
-                        className="citymind-google-button flex min-h-10 justify-center"
-                        aria-label="Admin Login with Google"
+                        className="citymind-google-button flex min-h-10 justify-center py-1"
+                        aria-label="Admin Access with Google"
                         onMouseEnter={() => { loginModeRef.current = 'admin'; }}
                         onFocusCapture={() => { loginModeRef.current = 'admin'; }}
                       />
