@@ -82,3 +82,19 @@ test('citizen evidence form hides manual coordinates but preserves backend paylo
   assert.match(portal, /Incident submitted successfully\./);
   assert.match(portal, /userAPI\.getReport\(result\.id\)/);
 });
+
+test('user mode skips admin-only operational fetches outside admin pages', () => {
+  const topbar = fs.readFileSync(new URL('../components/layout/Topbar.jsx', import.meta.url), 'utf8');
+  const dashboard = fs.readFileSync(new URL('../pages/Dashboard.jsx', import.meta.url), 'utf8');
+  assert.match(topbar, /canFetchOperationalNotifications/);
+  assert.match(topbar, /!canFetchOperationalNotifications/);
+  assert.match(dashboard, /isUserMode/);
+  assert.match(dashboard, /if \(isUserMode\)/);
+  assert.match(dashboard, /showEvidence=\{!isUserMode\}/);
+});
+
+test('admin mode keeps permission-gated sidebar navigation', () => {
+  const sidebar = fs.readFileSync(new URL('../components/layout/Sidebar.jsx', import.meta.url), 'utf8');
+  assert.match(sidebar, /loginMode === 'user'/);
+  assert.match(sidebar, /return hasPermission\(item\.permission\)/);
+});

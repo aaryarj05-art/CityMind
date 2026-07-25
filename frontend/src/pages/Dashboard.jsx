@@ -16,8 +16,11 @@ import { riskAPI, areasAPI, dispatchAPI } from '../services/api';
 import { formatDate } from '../utils/formatters';
 import { AlertCircle, Map, Siren, Shield, Truck, Clock, ShieldAlert, Brain, Zap, Send, Eye, CheckCircle2, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 
 const Dashboard = () => {
+  const { loginMode } = useAuth();
+  const isUserMode = loginMode === 'user';
   const { data: p1Data, loading: p1Loading, refreshing, stale, degraded, error: p1Error, refetch: p1Refetch } = useDashboardData();
   
   const supplementaryInFlight = useRef(false);
@@ -46,6 +49,18 @@ const Dashboard = () => {
   }, []);
 
   const fetchDashboardData = async () => {
+    if (isUserMode) {
+      setRiskSummary(null);
+      setRiskAreas([]);
+      setAreasList([]);
+      setRiskLoading(false);
+      setRiskError(null);
+      setDispatchSummary(null);
+      setActiveDispatches([]);
+      setDispatchLoading(false);
+      setDispatchError(null);
+      return;
+    }
     if (supplementaryInFlight.current) return;
     supplementaryInFlight.current = true;
     setRiskLoading(true);
@@ -80,7 +95,7 @@ const Dashboard = () => {
     const refreshSupplementary = () => fetchDashboardData();
     window.addEventListener('citymind-dashboard-refreshed', refreshSupplementary);
     return () => window.removeEventListener('citymind-dashboard-refreshed', refreshSupplementary);
-  }, []);
+  }, [isUserMode]);
 
   const handleRetryAll = () => {
     p1Refetch();
@@ -179,6 +194,8 @@ const Dashboard = () => {
         <StatCard title="Emergency Beds" value={summary.available_emergency_beds} icon={Truck} color="orange" />
         <StatCard title="Avg Response" value={summary.average_response_time} icon={Clock} color="purple" />
       </div>
+      {!isUserMode && (
+        <>
       {/* Phase 2 Deterministic Risk Intelligence Section */}
       <div className="glass-panel mb-8 p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-navy-700/60 pb-4 mb-6">
@@ -421,6 +438,9 @@ const Dashboard = () => {
         )}
       </div>
 
+        </>
+      )}
+
       {/* Map, Feeds, and Lists */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <div className="lg:col-span-2 space-y-6">
@@ -485,7 +505,7 @@ const Dashboard = () => {
         
         <div className="space-y-6">
           <div className="h-[400px]">
-            <IncidentFeed incidents={recent_incidents} />
+            <IncidentFeed incidents={recent_incidents} showEvidence={!isUserMode} />
           </div>
           
           <ResourceSummary summary={resource_summary} />
@@ -494,14 +514,16 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <LiveResponseSummaryCard
+      {!isUserMode && <LiveResponseSummaryCard
         incident={recent_incidents.find((item) =>
           ['Medical Emergency', 'Road Accident'].includes(item.category)
           && Number.isFinite(Number(item.latitude))
           && Number.isFinite(Number(item.longitude))
         )}
-      />
+      />}
 
+      {!isUserMode && (
+        <>
       {/* AI Command Center Card (Phase 4) */}
       <div className="glass-panel mt-6 p-5">
         <div className="flex items-center justify-between">
@@ -545,6 +567,9 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+        </>
+      )}
 
       {/* Dispatch details drawer for latest dispatches click */}
       <DispatchDetailsDrawer

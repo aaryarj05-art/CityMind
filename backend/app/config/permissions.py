@@ -15,14 +15,14 @@ ALL_PERMISSIONS = frozenset({
     "dashboard.read", "risk.read", "incidents.read", "incidents.write",
     "resources.read", "resources.write", "dispatch.read", "dispatch.approve", "hospitals.read",
     "hospital_capacity.read", "traffic.read", "analytics.read", "ai.query",
-    "audit.read", "settings.manage",
+    "audit.read", "settings.manage", "citizen.report.create", "citizen.report.read",
 })
 
 READ_PERMISSIONS = frozenset(permission for permission in ALL_PERMISSIONS if permission.endswith(".read"))
 
 PERMISSION_MATRIX: dict[str, frozenset[str]] = {
     "DemoAdmin": ALL_PERMISSIONS,
-    "DemoUser": frozenset({"dashboard.read"}),
+    "DemoUser": frozenset({"dashboard.read", "citizen.report.create", "citizen.report.read"}),
     "Mayor": READ_PERMISSIONS | {"ai.query", "audit.read"},
     "Commissioner": (READ_PERMISSIONS - {"audit.read"}) | {"ai.query", "dispatch.approve"},
     "Police": frozenset({

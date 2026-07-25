@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import jwt
 import pytest
@@ -8,6 +9,7 @@ from fastapi.testclient import TestClient
 from app.config.permissions import ALL_PERMISSIONS, PERMISSION_MATRIX, ROLES, permissions_for_role, role_for_email
 from app.database import SessionLocal
 from app.main import app
+from app.models import CitizenReport, CitizenReportMedia, Incident
 from app.models.auth import AuthenticationAudit, User
 from app.routes import ai as ai_route
 from app.services import auth_service
@@ -234,7 +236,7 @@ def test_logout_records_audit_without_claiming_revocation(client):
 def test_every_role_has_a_centralized_permission_entry():
     assert set(ROLES) == set(PERMISSION_MATRIX)
     assert PERMISSION_MATRIX["DemoAdmin"] == ALL_PERMISSIONS
-    assert PERMISSION_MATRIX["DemoUser"] == {"dashboard.read"}
+    assert PERMISSION_MATRIX["DemoUser"] == {"dashboard.read", "citizen.report.create", "citizen.report.read"}
     assert PERMISSION_MATRIX["Guest"] == {"dashboard.read"}
     for role in ROLES:
         assert set(permissions_for_role(role)) <= ALL_PERMISSIONS
@@ -253,6 +255,51 @@ def test_demo_user_is_forbidden_from_admin_routes(client):
     assert client.get("/api/risk/summary", headers=auth_header(token)).status_code == 403
     assert client.post("/api/ai/query", headers=auth_header(token), json={"message": "status"}).status_code == 403
 
+
+
+
+def test_demo_user_can_submit_and_read_citizen_report_but_not_admin_routes(client):
+    _, token = create_user(role="DemoUser", suffix="citizen-reporter")
+    headers = auth_header(token)
+    db = SessionLocal()
+    try:
+        incident = db.query(Incident).filter(Incident.status.notin_(["Resolved", "Closed"])).first()
+        assert incident is not None
+        latitude, longitude = incident.latitude, incident.longitude
+    finally:
+        db.close()
+
+    response = client.post(
+        "/api/user/report",
+        headers=headers,
+        data={
+            "description": "Smoke visible near the market entrance",
+            "latitude": str(latitude),
+            "longitude": str(longitude),
+            "readable_address": "Devaraja Market entrance, Mysuru",
+        },
+        files=[("images", ("evidence.jpg", b"fake-jpeg-bytes", "image/jpeg"))],
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["verification_status"] == "Pending Verification"
+    assert payload["incident_status"]
+    assert client.get(f"/api/user/report/{payload['id']}", headers=headers).status_code == 200
+    assert client.get("/api/risk/summary", headers=headers).status_code == 403
+    assert client.get("/api/dispatches", headers=headers).status_code == 403
+
+    db = SessionLocal()
+    try:
+        media_rows = db.query(CitizenReportMedia).join(CitizenReport).filter(CitizenReport.id == payload["id"]).all()
+        for media in media_rows:
+            path = Path("uploads/citizen_reports") / media.stored_filename
+            path.unlink(missing_ok=True)
+        db.query(CitizenReportMedia).filter(CitizenReportMedia.id.in_([media.id for media in media_rows])).delete(synchronize_session=False)
+        db.query(CitizenReport).filter(CitizenReport.id == payload["id"]).delete(synchronize_session=False)
+        db.commit()
+    finally:
+        db.close()
 
 def test_guest_is_forbidden_from_operational_and_ai_routes(client):
     _, token = create_user(role="Guest", suffix="guest")

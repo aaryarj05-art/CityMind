@@ -4,13 +4,14 @@ import { dashboardAPI, riskAPI, dispatchAPI } from '../../services/api';
 import { useAuth } from '../../auth/AuthContext';
 
 const Topbar = ({ title }) => {
-  const { remainingSeconds, sessionExpiring } = useAuth();
+  const { remainingSeconds, sessionExpiring, loginMode, hasPermission } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [readIds, setReadIds] = useState(new Set());
   const [aiStatus, setAiStatus] = useState(() => sessionStorage.getItem('citymind_ai_status') || 'available');
   const dropdownRef = useRef(null);
+  const canFetchOperationalNotifications = loginMode !== 'user' && hasPermission('risk.read') && hasPermission('dispatch.read');
 
   useEffect(() => {
     const handleStatusChange = (e) => {
@@ -53,6 +54,32 @@ const Topbar = ({ title }) => {
   // Derive notifications from Phase 2 risk data + Phase 3 dispatch data + Phase 1 operational data
   const fetchNotifications = useCallback(async () => {
     try {
+      if (!canFetchOperationalNotifications) {
+        const dashRes = await dashboardAPI.getDashboardData();
+        const data = dashRes.data;
+        const derived = [];
+        let notifId = 1;
+
+        if (data.summary?.feed_statuses) {
+          Object.entries(data.summary.feed_statuses).forEach(([feed, status]) => {
+            if (status === 'Delayed' || status === 'Offline') {
+              derived.push({
+                id: notifId++,
+                title: `Feed ${status}`,
+                description: `${feed} is currently ${status.toLowerCase()}.`,
+                severity: status === 'Offline' ? 'critical' : 'high',
+                area: null,
+                timestamp: new Date().toISOString(),
+                icon: 'feed',
+              });
+            }
+          });
+        }
+
+        setNotifications(derived);
+        return;
+      }
+
       const [riskAreasRes, riskIncidentsRes, riskSummaryRes, dispRes, dashRes] = await Promise.allSettled([
         riskAPI.getAreas(),
         riskAPI.getIncidents(),
@@ -257,7 +284,7 @@ const Topbar = ({ title }) => {
     } catch {
       // Silently fail — the notification bell just won't have items
     }
-  }, []);
+  }, [canFetchOperationalNotifications]);
 
   useEffect(() => {
     fetchNotifications();

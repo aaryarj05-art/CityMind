@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.dependencies.auth import require_permission
 from app.schemas.citizen_report import CitizenReportResponse
 from app.services.citizen_report_service import CitizenReportService, ReportValidationError
 
@@ -19,6 +20,7 @@ def submit_citizen_report(
     readable_address: str = Form(...),
     images: list[UploadFile] = File(...),
     db: Session = Depends(get_db),
+    _permission=Depends(require_permission("citizen.report.create")),
 ):
     try:
         return CitizenReportService().submit_report(
@@ -34,7 +36,11 @@ def submit_citizen_report(
 
 
 @router.get("/report/{report_id}", response_model=CitizenReportResponse)
-def read_citizen_report(report_id: int, db: Session = Depends(get_db)):
+def read_citizen_report(
+    report_id: int,
+    db: Session = Depends(get_db),
+    _permission=Depends(require_permission("citizen.report.read")),
+):
     report = CitizenReportService().get_report(db, report_id)
     if report is None:
         raise HTTPException(status_code=404, detail="Citizen report not found")
@@ -42,7 +48,10 @@ def read_citizen_report(report_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/report-media/{stored_filename}")
-def read_report_media(stored_filename: str):
+def read_report_media(
+    stored_filename: str,
+    _permission=Depends(require_permission("citizen.report.read")),
+):
     if "/" in stored_filename or "\\" in stored_filename or ".." in stored_filename:
         raise HTTPException(status_code=404, detail="Media not found")
     media_path = Path("uploads/citizen_reports") / stored_filename

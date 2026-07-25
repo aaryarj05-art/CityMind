@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import {
   clearSession,
@@ -14,6 +14,7 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState(getStoredUser);
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(Boolean(getAccessToken()));

@@ -17,7 +17,7 @@ const getCategoryIcon = (category) => {
   }
 };
 
-const IncidentFeed = ({ incidents = [] }) => {
+const IncidentFeed = ({ incidents = [], showEvidence = true }) => {
   const [evidenceIncidentId, setEvidenceIncidentId] = useState(null);
 
   return (
@@ -40,23 +40,27 @@ const IncidentFeed = ({ incidents = [] }) => {
                 <p className="text-xs text-slate-400 mt-1 mb-2">
                   Dept: <span className="text-slate-300">{incident.responding_department}</span> â€¢ {formatDate(incident.reported_at)}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setEvidenceIncidentId(incident.id)}
-                  className="rounded-md border border-cyan-300/20 bg-cyan-400/10 px-2 py-1 text-xs font-semibold text-cyan-200 hover:bg-cyan-400/15"
-                >
-                  Evidence
-                </button>
+                {showEvidence && (
+                  <button
+                    type="button"
+                    onClick={() => setEvidenceIncidentId(incident.id)}
+                    className="rounded-md border border-cyan-300/20 bg-cyan-400/10 px-2 py-1 text-xs font-semibold text-cyan-200 hover:bg-cyan-400/15"
+                  >
+                    Evidence
+                  </button>
+                )}
               </div>
             </div>
           ))}
         </div>
       </div>
-      <IncidentEvidenceDrawer
-        isOpen={evidenceIncidentId !== null}
-        incidentId={evidenceIncidentId}
-        onClose={() => setEvidenceIncidentId(null)}
-      />
+      {showEvidence && (
+        <IncidentEvidenceDrawer
+          isOpen={evidenceIncidentId !== null}
+          incidentId={evidenceIncidentId}
+          onClose={() => setEvidenceIncidentId(null)}
+        />
+      )}
     </>
   );
 };

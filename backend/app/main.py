@@ -132,4 +132,4 @@ app.include_router(hospitals_google.router, prefix="/api", dependencies=[Depends
 app.include_router(hospitals.router, prefix="/api", dependencies=[Depends(require_permission("hospital_capacity.read"))])
 app.include_router(ai.router)
 app.include_router(security.router, prefix="/api")
-app.include_router(user.router, prefix="/api", dependencies=[Depends(require_permission("dashboard.read"))])
+app.include_router(user.router, prefix="/api")
