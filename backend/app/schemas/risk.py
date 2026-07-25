@@ -51,6 +51,10 @@ class IncidentPriority(BaseModel):
     reasons: List[str]
     recommended_response_urgency: str
     last_calculated: datetime
+    citizen_report_count: int = 0
+    latest_citizen_report_submitted_at: datetime | None = None
+    latest_citizen_report_status: str | None = None
+    has_citizen_evidence: bool = False
 
 
 class RiskSummary(BaseModel):

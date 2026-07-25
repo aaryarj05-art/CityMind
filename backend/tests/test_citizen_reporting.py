@@ -295,3 +295,18 @@ def test_dashboard_recent_incidents_surfaces_matched_citizen_report(client):
     assert dashboard.status_code == 200
     recent_incidents = dashboard.json()["recent_incidents"]
     assert recent_incidents[0]["id"] == incident_id
+
+
+def test_current_incidents_prioritizes_latest_citizen_report(client):
+    response, incident_id = submit_report(client)
+
+    assert response.status_code == 201
+    incidents = client.get("/api/risk/incidents")
+
+    assert incidents.status_code == 200
+    payload = incidents.json()
+    assert payload[0]["incident_id"] == incident_id
+    assert payload[0]["has_citizen_evidence"] is True
+    assert payload[0]["citizen_report_count"] == 1
+    assert payload[0]["latest_citizen_report_status"] == "Pending Verification"
+    assert payload[0]["latest_citizen_report_submitted_at"] is not None

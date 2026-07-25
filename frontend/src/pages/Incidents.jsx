@@ -11,7 +11,7 @@ import DispatchDetailsDrawer from '../components/common/DispatchDetailsDrawer';
 import IncidentEvidenceDrawer from '../components/common/IncidentEvidenceDrawer';
 import { riskAPI, dispatchAPI, incidentsAPI } from '../services/api';
 import { formatDate } from '../utils/formatters';
-import { resolveMediaUrl } from '../utils/media';
+import AuthenticatedMediaImage from '../components/common/AuthenticatedMediaImage';
 import { Search, Filter, X, Zap, Brain, Shield, Info, AlertTriangle, Play, Eye, CheckCircle2, Camera } from 'lucide-react';
 
 const Incidents = () => {
@@ -110,12 +110,6 @@ const Incidents = () => {
       );
     });
   }, [incidents, search]);
-
-  const incidentEvidenceMedia = React.useMemo(() => (
-    incidentEyewitness.flatMap((report) => (
-      (report.media || []).map((media) => ({ ...media, reportId: report.report_id }))
-    ))
-  ), [incidentEyewitness]);
 
   const clearFilters = () => {
     setSearch('');
@@ -229,6 +223,11 @@ const Incidents = () => {
                       <div className="flex items-center gap-2 mb-1.5">
                         <span className="text-xs font-bold text-slate-500">#{index + 1}</span>
                         <h4 className="font-semibold text-white truncate text-base">{inc.title}</h4>
+                        {inc.has_citizen_evidence && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cyan-200">
+                            <Camera className="h-3 w-3" /> Citizen Report
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-slate-400 flex flex-wrap gap-x-2 gap-y-1">
                         <span>Area: <strong className="text-slate-300">{inc.area_name} (#{inc.area_id})</strong></span>
@@ -236,6 +235,12 @@ const Incidents = () => {
                         <span>Urgency: <strong className="text-blue-300">{inc.recommended_response_urgency}</strong></span>
                         <span>â€¢</span>
                         <span>Calculated: {formatDate(inc.last_calculated)}</span>
+                        {inc.latest_citizen_report_submitted_at && (
+                          <>
+                            <span>-</span>
+                            <span>Citizen report: <strong className="text-cyan-200">{formatDate(inc.latest_citizen_report_submitted_at)}</strong></span>
+                          </>
+                        )}
                       </p>
                       
                       {/* Priority Reasons Preview */}
@@ -460,16 +465,39 @@ const Incidents = () => {
             </div>
 
 
-            {incidentEvidenceMedia.length > 0 && (
+            {incidentEyewitness.length > 0 && (
               <div className="bg-navy-900/40 border border-navy-700/50 rounded-xl p-5">
                 <h4 className="text-slate-400 font-semibold text-xs uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                  <Camera className="w-4 h-4 text-cyan-300" /> Uploaded Evidence
+                  <Camera className="w-4 h-4 text-cyan-300" /> Citizen Eyewitness Evidence
                 </h4>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {incidentEvidenceMedia.map((media) => (
-                    <a key={media.id} href={resolveMediaUrl(media.media_url)} target="_blank" rel="noopener noreferrer" className="group overflow-hidden rounded-lg border border-navy-700 bg-navy-950">
-                      <img src={resolveMediaUrl(media.media_url)} alt={media.original_filename} className="aspect-video w-full object-cover transition-transform group-hover:scale-[1.02]" />
-                    </a>
+                <div className="space-y-3">
+                  {incidentEyewitness.map((report) => (
+                    <div key={report.report_id} className="rounded-lg border border-navy-700 bg-navy-950/60 p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-white">Report #{report.report_id}</p>
+                          <p className="mt-1 text-xs text-slate-300">{report.description}</p>
+                        </div>
+                        <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold text-amber-300">
+                          {report.verification_status}
+                        </span>
+                      </div>
+                      <div className="mt-3 grid gap-2 text-xs text-slate-400 sm:grid-cols-2">
+                        <span>Submitted: {formatDate(report.submitted_at)}</span>
+                        <span>Location: {report.readable_address || 'Provided coordinates'}</span>
+                        <span>Latitude: {Number(report.latitude).toFixed(5)}</span>
+                        <span>Longitude: {Number(report.longitude).toFixed(5)}</span>
+                      </div>
+                      {report.media?.length > 0 && (
+                        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                          {report.media.map((media) => (
+                            <div key={media.id} className="overflow-hidden rounded-lg border border-navy-700 bg-navy-950">
+                              <AuthenticatedMediaImage src={media.media_url} alt={media.original_filename} className="aspect-video w-full object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>

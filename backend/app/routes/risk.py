@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config.risk_weights import NEARBY_RADIUS_KM
 from app.database import get_db
-from app.models import Area, Incident, Resource
+from app.models import Area, CitizenReport, Incident, Resource
 from app.schemas.risk import AreaRisk, IncidentPriority, RiskSummary
 from app.services.bigquery_analytics import export_risk_snapshot
 from app.services.incident_priority import calculate_incident_priority
@@ -42,12 +42,31 @@ def _nearby_incident_resources(incident: Incident, resources: list[Resource]) ->
 async def _all_incident_priorities(db: Session, context: tuple | None = None) -> tuple[list[dict], object]:
     calculated_at, area_risks, areas, resources = context or await _risk_context(db)
     risks_by_area = {risk["area_id"]: risk for risk in area_risks}
+    report_counts: dict[int, int] = defaultdict(int)
+    latest_reports: dict[int, CitizenReport] = {}
+    for report in db.query(CitizenReport).order_by(CitizenReport.submitted_at.desc()).all():
+        report_counts[report.incident_id] += 1
+        latest_reports.setdefault(report.incident_id, report)
     results = []
     for incident in db.query(Incident).all():
         area = areas.get(incident.area_id)
         if area is not None:
-            results.append(calculate_incident_priority(incident, risks_by_area[incident.area_id], _nearby_incident_resources(incident, resources), area.name, calculated_at))
+            priority = calculate_incident_priority(incident, risks_by_area[incident.area_id], _nearby_incident_resources(incident, resources), area.name, calculated_at)
+            latest_report = latest_reports.get(incident.id)
+            priority.update({
+                "citizen_report_count": report_counts.get(incident.id, 0),
+                "latest_citizen_report_submitted_at": latest_report.submitted_at if latest_report else None,
+                "latest_citizen_report_status": latest_report.verification_status if latest_report else None,
+                "has_citizen_evidence": latest_report is not None,
+            })
+            results.append(priority)
     return results, calculated_at
+
+
+def _incident_priority_sort_key(result: dict):
+    submitted_at = result.get("latest_citizen_report_submitted_at")
+    citizen_timestamp = submitted_at.timestamp() if submitted_at else 0
+    return (0 if submitted_at else 1, -citizen_timestamp, -result["priority_score"], result["incident_id"])
 
 
 @router.get("/areas", response_model=list[AreaRisk])
@@ -81,7 +100,7 @@ async def read_incident_priorities(priority_level: Literal["Routine", "Elevated"
         results = [result for result in results if result["status"].lower() == status.lower()]
     if area_id is not None:
         results = [result for result in results if result["area_id"] == area_id]
-    return sorted(results, key=lambda result: (-result["priority_score"], result["incident_id"]))
+    return sorted(results, key=_incident_priority_sort_key)
 
 
 @router.get("/incidents/{incident_id}", response_model=IncidentPriority)

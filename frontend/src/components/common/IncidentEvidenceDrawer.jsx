@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, Camera, CheckCircle2, Clock3, ExternalLink, FileText, Loader2, MapPin, ShieldCheck, X } from 'lucide-react';
 import { incidentsAPI } from '../../services/api';
 import { formatDate } from '../../utils/formatters';
-import { resolveMediaUrl } from '../../utils/media';
+import AuthenticatedMediaImage from './AuthenticatedMediaImage';
 
 const statusTone = (status) => {
   if (status === 'VERIFIED') return 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300';
@@ -164,9 +164,9 @@ const IncidentEvidenceDrawer = ({ isOpen, onClose, incidentId }) => {
                         {report.media?.length > 0 && (
                           <div className="mt-3 grid grid-cols-2 gap-2">
                             {report.media.map((media) => (
-                              <a key={media.id} href={resolveMediaUrl(media.media_url)} target="_blank" rel="noopener noreferrer" className="group overflow-hidden rounded-lg border border-navy-700 bg-navy-900">
-                                <img src={resolveMediaUrl(media.media_url)} alt={media.original_filename} className="aspect-video w-full object-cover transition-transform group-hover:scale-[1.02]" />
-                              </a>
+                              <div key={media.id} className="overflow-hidden rounded-lg border border-navy-700 bg-navy-900">
+                                <AuthenticatedMediaImage src={media.media_url} alt={media.original_filename} className="aspect-video w-full object-cover" />
+                              </div>
                             ))}
                           </div>
                         )}
