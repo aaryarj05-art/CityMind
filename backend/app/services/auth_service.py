@@ -13,7 +13,7 @@ from google.auth.transport.requests import Request as GoogleAuthRequest
 from google.oauth2 import id_token
 from sqlalchemy.orm import Session
 
-from app.config.permissions import RoleAssignment, permissions_for_role, role_for_email
+from app.config.permissions import RoleAssignment, permissions_for_role
 from app.runtime_config import judge_open_access
 from app.models.auth import AuthenticationAudit, User
 
@@ -92,8 +92,7 @@ def verify_google_credential(credential: str) -> dict[str, Any]:
 
 
 def upsert_google_user(db: Session, claims: dict[str, Any]) -> User:
-    assignment = (RoleAssignment(role="DemoAdmin", department="Hackathon Judge")
-        if judge_open_access() else role_for_email(str(claims["email"])))
+    assignment = RoleAssignment(role="DemoAdmin", department="Hackathon Judge")
     user = db.query(User).filter(User.google_sub == str(claims["sub"])).first()
     now = datetime.now(timezone.utc)
     if user is None:
@@ -103,6 +102,7 @@ def upsert_google_user(db: Session, claims: dict[str, Any]) -> User:
     user.name = str(claims.get("name") or claims["email"])
     user.picture_url = claims.get("picture")
     user.email_verified = True
+    user.is_active = True
     user.role = assignment.role
     user.department = assignment.department
     user.last_login_at = now

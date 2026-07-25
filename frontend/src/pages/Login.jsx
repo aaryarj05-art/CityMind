@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  Building2,
   LoaderCircle,
   RefreshCw,
   ShieldCheck,
+  UserRound,
 } from 'lucide-react';
 import {
   Navigate,
-  useLocation,
   useNavigate,
   useSearchParams,
 } from 'react-router-dom';
@@ -23,9 +24,8 @@ const objectives = [
 ];
 
 const Login = () => {
-  const buttonRef = useRef(null);
+  const loginModeRef = useRef('admin');
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams] = useSearchParams();
 
   const {
@@ -37,6 +37,7 @@ const Login = () => {
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState('');
   const [retryKey, setRetryKey] = useState(0);
+  const [selectedMode, setSelectedMode] = useState(null);
 
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
@@ -50,15 +51,9 @@ const Login = () => {
     }
 
     const renderGoogleButton = () => {
-      if (
-        !active ||
-        !window.google?.accounts?.id ||
-        !buttonRef.current
-      ) {
+      if (!active || !window.google?.accounts?.id) {
         return;
       }
-
-      buttonRef.current.replaceChildren();
 
       window.google.accounts.id.initialize({
         client_id: clientId,
@@ -82,7 +77,10 @@ const Login = () => {
               credentialResponse.credential,
             );
 
-            const destination = location.state?.from || '/';
+            const destination =
+              loginModeRef.current === 'user'
+                ? '/user'
+                : '/';
 
             navigate(destination, {
               replace: true,
@@ -97,22 +95,11 @@ const Login = () => {
             );
 
             setStatus('error');
+          } finally {
+            setSelectedMode(null);
           }
         },
       });
-
-      window.google.accounts.id.renderButton(
-        buttonRef.current,
-        {
-          type: 'standard',
-          theme: 'outline',
-          size: 'large',
-          text: 'signin_with',
-          shape: 'rectangular',
-          logo_alignment: 'left',
-          width: 320,
-        },
-      );
 
       setStatus('ready');
     };
@@ -161,7 +148,6 @@ const Login = () => {
     clientId,
     retryKey,
     loginWithCredential,
-    location.state,
     navigate,
   ]);
 
@@ -175,6 +161,31 @@ const Login = () => {
     sessionLoading ||
     status === 'loading' ||
     status === 'authenticating';
+
+  const startGoogleLogin = (mode) => {
+    loginModeRef.current = mode;
+    setSelectedMode(mode);
+    setError('');
+
+    if (!window.google?.accounts?.id) {
+      setStatus('loading');
+      setRetryKey((value) => value + 1);
+      return;
+    }
+
+    window.google.accounts.id.prompt((notification) => {
+      if (
+        notification.isNotDisplayed() ||
+        notification.isSkippedMoment()
+      ) {
+        setSelectedMode(null);
+        setStatus('error');
+        setError(
+          'Google sign-in could not be opened. Please retry.',
+        );
+      }
+    });
+  };
 
   return (
     <main className="relative flex min-h-screen flex-col overflow-hidden bg-[#030811] text-slate-100">
@@ -263,15 +274,38 @@ const Login = () => {
                 </div>
               )}
 
-              <div className="mt-7 flex min-h-12 justify-center" aria-label="Sign in with Google button" aria-busy={busy}>
+              <div className="mt-7 flex min-h-12 flex-col gap-3" aria-label="Sign in with Google" aria-busy={busy}>
                 {busy && (
-                  <div className="flex items-center gap-2 text-sm text-slate-400">
+                  <div className="flex items-center justify-center gap-2 text-sm text-slate-400">
                     <LoaderCircle className="h-5 w-5 animate-spin" />
                     {status === 'authenticating' ? 'Verifying with CityMind...' : 'Loading secure sign-in...'}
                   </div>
                 )}
 
-                <div ref={buttonRef} className={busy ? 'hidden' : ''} />
+                {!busy && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => startGoogleLogin('user')}
+                      disabled={Boolean(selectedMode)}
+                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-cyan-200/15 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition hover:border-cyan-200/35 hover:bg-cyan-300/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/60 disabled:cursor-not-allowed disabled:opacity-70"
+                      aria-label="User Login with Google"
+                    >
+                      {selectedMode === 'user' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UserRound className="h-4 w-4" />}
+                      User Login
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => startGoogleLogin('admin')}
+                      disabled={Boolean(selectedMode)}
+                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-blue-300/20 bg-blue-500/15 px-4 py-3 text-sm font-semibold text-blue-50 transition hover:border-blue-200/40 hover:bg-blue-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60 disabled:cursor-not-allowed disabled:opacity-70"
+                      aria-label="Admin Login with Google"
+                    >
+                      {selectedMode === 'admin' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
+                      Admin Login
+                    </button>
+                  </>
+                )}
               </div>
 
               {status === 'error' && (

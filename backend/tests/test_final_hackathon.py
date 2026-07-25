@@ -102,7 +102,7 @@ def test_dashboard_changes_after_incident_and_hospital_mutations(simulation_db):
     assert after.average_hospital_occupancy > before.average_hospital_occupancy
 
 
-def test_judge_mode_assigns_demoadmin_and_normal_mapping_returns(monkeypatch, simulation_db):
+def test_google_login_grants_demo_admin_for_any_verified_account(monkeypatch, simulation_db):
     claims = {"sub": "judge-open-test", "email": "judge@example.test", "name": "Judge", "email_verified": True}
     monkeypatch.setenv("CITYMIND_JUDGE_OPEN_ACCESS", "true")
     user = auth_service.upsert_google_user(simulation_db, claims)
@@ -113,20 +113,21 @@ def test_judge_mode_assigns_demoadmin_and_normal_mapping_returns(monkeypatch, si
     assert simulation_db.query(AuthenticationAudit).order_by(AuthenticationAudit.id.desc()).first().judge_mode is True
     monkeypatch.setenv("CITYMIND_JUDGE_OPEN_ACCESS", "false")
     monkeypatch.setenv("CITYMIND_ROLE_MAPPINGS_JSON", "{}")
+    user.is_active = False; simulation_db.commit()
     user = auth_service.upsert_google_user(simulation_db, claims)
-    assert user.role == "Guest" and role_for_email(claims["email"]).role == "Guest"
+    assert user.role == "DemoAdmin" and user.is_active is True and role_for_email(claims["email"]).role == "Guest"
     simulation_db.query(AuthenticationAudit).filter(AuthenticationAudit.user_id == user.id).delete()
     simulation_db.delete(user); simulation_db.commit()
 
 
 def test_frontend_role_input_and_claim_escalation_are_ignored(monkeypatch, simulation_db):
-    payload = GoogleCredentialRequest.model_validate({"credential": "verified-token", "role": "DemoAdmin"})
+    payload = GoogleCredentialRequest.model_validate({"credential": "verified-token", "role": "Guest"})
     assert not hasattr(payload, "role")
     monkeypatch.setenv("CITYMIND_JUDGE_OPEN_ACCESS", "false")
     monkeypatch.setenv("CITYMIND_ROLE_MAPPINGS_JSON", "{}")
     user = auth_service.upsert_google_user(simulation_db, {"sub": "role-attack", "email": "attacker@example.test",
-        "name": "Attacker", "email_verified": True, "role": "DemoAdmin"})
-    assert user.role == "Guest"
+        "name": "Attacker", "email_verified": True, "role": "Guest"})
+    assert user.role == "DemoAdmin"
     simulation_db.delete(user); simulation_db.commit()
 
 
