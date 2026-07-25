@@ -16,16 +16,6 @@ import { useAuth } from '../auth/AuthContext';
 const GIS_SCRIPT_ID = 'google-identity-services';
 const GOOGLE_BUTTON_WIDTH = 400;
 
-const hiddenGoogleButtonStyle = {
-  position: 'absolute',
-  left: '-9999px',
-  top: '0',
-  width: `${GOOGLE_BUTTON_WIDTH}px`,
-  height: '48px',
-  opacity: 0,
-  pointerEvents: 'auto',
-  overflow: 'hidden',
-};
 
 const maskClientId = (value) => {
   if (!value) return 'missing';
@@ -54,6 +44,7 @@ const Login = () => {
   const loginModeRef = useRef('admin');
   const userGoogleButtonRef = useRef(null);
   const adminGoogleButtonRef = useRef(null);
+  const credentialTimeoutRef = useRef(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -69,6 +60,20 @@ const Login = () => {
   const [selectedMode, setSelectedMode] = useState(null);
 
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+  useEffect(() => {
+    oauthLog('Login page mounted', {
+      clientId: maskClientId(clientId),
+      clientIdPresent: Boolean(clientId),
+      origin: window.location.origin,
+    });
+
+    return () => {
+      if (credentialTimeoutRef.current) {
+        window.clearTimeout(credentialTimeoutRef.current);
+      }
+    };
+  }, [clientId]);
 
   useEffect(() => {
     let active = true;
@@ -109,13 +114,25 @@ const Login = () => {
               return;
             }
 
-            setSelectedMode(loginModeRef.current);
+            if (credentialTimeoutRef.current) {
+              window.clearTimeout(credentialTimeoutRef.current);
+              credentialTimeoutRef.current = null;
+            }
+
+            const credentialMode = ['user', 'admin'].includes(credentialResponse.state)
+              ? credentialResponse.state
+              : loginModeRef.current;
+            loginModeRef.current = credentialMode;
+
+            setSelectedMode(credentialMode);
             setStatus('authenticating');
             setError('');
-            oauthLog(`credential received for mode: ${loginModeRef.current}`, {
-              mode: loginModeRef.current,
+            oauthLog('credential callback received', {
+              mode: credentialMode,
+              responseState: credentialResponse.state,
               origin: window.location.origin,
             });
+            oauthLog('selected login mode at credential time', { mode: credentialMode });
 
             try {
               const user = await loginWithCredential(
@@ -123,18 +140,18 @@ const Login = () => {
               );
 
               oauthLog('backend authentication succeeded', {
-                mode: loginModeRef.current,
+                mode: credentialMode,
                 role: user?.role,
                 department: user?.department,
               });
 
               const destination =
-                loginModeRef.current === 'user'
+                credentialMode === 'user'
                   ? '/user'
                   : '/';
 
               oauthLog('route selected after login', {
-                mode: loginModeRef.current,
+                mode: credentialMode,
                 destination,
               });
 
@@ -202,7 +219,14 @@ const Login = () => {
 
       script.addEventListener(
         'load',
-        renderGoogleButton,
+        () => {
+          oauthLog('GIS script loaded', {
+            clientId: maskClientId(clientId),
+            clientIdPresent: Boolean(clientId),
+            origin: window.location.origin,
+          });
+          renderGoogleButton();
+        },
         { once: true },
       );
 
@@ -252,8 +276,13 @@ const Login = () => {
           shape: 'rectangular',
           logo_alignment: 'left',
           width: GOOGLE_BUTTON_WIDTH,
+          state: mode,
+          click_listener: () => handleGoogleButtonClick(mode),
         });
-        oauthLog('Google sign-in button rendered', { mode });
+        oauthLog(`${mode === 'user' ? 'User' : 'Admin'} GIS button rendered`, {
+          mode,
+          origin: window.location.origin,
+        });
       });
     } catch (oauthError) {
       oauthWarn('Google sign-in button rendering failed', oauthError);
@@ -275,68 +304,30 @@ const Login = () => {
     status === 'loading' ||
     status === 'authenticating';
 
-  const findHiddenGoogleButton = (mode) => {
-    const container = mode === 'user'
-      ? userGoogleButtonRef.current
-      : adminGoogleButtonRef.current;
-
-    return container?.querySelector('div[role="button"], button, iframe') || null;
-  };
-
-  const startGoogleLogin = (mode) => {
+  const handleGoogleButtonClick = (mode) => {
     loginModeRef.current = mode;
+    setSelectedMode(mode);
     setError('');
-    oauthLog(`${mode} login clicked`, {
+    oauthLog(`${mode} login area clicked`, {
       mode,
       clientId: maskClientId(clientId),
       clientIdPresent: Boolean(clientId),
       gisReady: Boolean(window.google?.accounts?.id) && status === 'ready',
       origin: window.location.origin,
     });
-    oauthLog('selected login mode', { mode });
 
-    if (status !== 'ready' || !window.google?.accounts?.id) {
-      oauthWarn('GIS not ready during visible login click', {
-        mode,
-        status,
-        clientIdPresent: Boolean(clientId),
-        origin: window.location.origin,
-      });
-      setStatus(status === 'error' ? 'error' : 'loading');
-      setError('Google sign-in is still loading. Please retry in a moment.');
-      return;
+    if (credentialTimeoutRef.current) {
+      window.clearTimeout(credentialTimeoutRef.current);
     }
 
-    const googleButton = findHiddenGoogleButton(mode);
-
-    if (!googleButton) {
-      oauthWarn('hidden GIS button not found', {
+    credentialTimeoutRef.current = window.setTimeout(() => {
+      oauthWarn('credential callback timeout after GIS button click', {
         mode,
         origin: window.location.origin,
       });
-      setStatus('error');
-      setError('Google sign-in button could not be initialized. Please refresh and retry.');
-      return;
-    }
-
-    setSelectedMode(mode);
-    oauthLog('GIS button found, forwarding click', {
-      mode,
-      tagName: googleButton.tagName,
-    });
-
-    try {
-      googleButton.click();
-      oauthLog('hidden GIS button click attempted', { mode });
-      window.setTimeout(() => {
-        setSelectedMode((current) => (current === mode ? null : current));
-      }, 1000);
-    } catch (oauthError) {
-      oauthWarn('hidden GIS button click failed', { mode, error: oauthError });
       setSelectedMode(null);
-      setStatus('error');
-      setError('Google sign-in button could not be initialized. Please refresh and retry.');
-    }
+      setError('Google sign-in did not open. Please check pop-up/browser restrictions or retry.');
+    }, 8000);
   };
 
   return (
@@ -351,6 +342,7 @@ const Login = () => {
         .login-objective-in { animation: login-objective-in 260ms ease-out both; }
         .login-bar-glow { animation: login-bar-glow 3s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) { .login-logo-float, .login-card-in, .login-objective-in, .login-bar-glow { animation: none !important; } }
+        .citymind-google-button iframe { margin: 0 auto !important; }
       `}</style>
 
       <div
@@ -436,26 +428,32 @@ const Login = () => {
 
                 {!busy && (
                   <>
-                    <button
-                      type="button"
-                      onClick={() => startGoogleLogin('user')}
-                      disabled={Boolean(selectedMode)}
-                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-cyan-200/15 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition hover:border-cyan-200/35 hover:bg-cyan-300/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/60 disabled:cursor-not-allowed disabled:opacity-70"
-                      aria-label="User Login with Google"
-                    >
-                      {selectedMode === 'user' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UserRound className="h-4 w-4" />}
-                      User Login
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => startGoogleLogin('admin')}
-                      disabled={Boolean(selectedMode)}
-                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-blue-300/20 bg-blue-500/15 px-4 py-3 text-sm font-semibold text-blue-50 transition hover:border-blue-200/40 hover:bg-blue-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60 disabled:cursor-not-allowed disabled:opacity-70"
-                      aria-label="Admin Login with Google"
-                    >
-                      {selectedMode === 'admin' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
-                      Admin Login
-                    </button>
+                    <div className="rounded-xl border border-cyan-200/15 bg-cyan-400/10 p-3 transition hover:border-cyan-200/35 hover:bg-cyan-300/15">
+                      <div className="mb-3 flex items-center justify-center gap-2 text-sm font-semibold text-cyan-50">
+                        {selectedMode === 'user' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UserRound className="h-4 w-4" />}
+                        User Login
+                      </div>
+                      <div
+                        ref={userGoogleButtonRef}
+                        className="citymind-google-button flex min-h-10 justify-center"
+                        aria-label="User Login with Google"
+                        onMouseEnter={() => { loginModeRef.current = 'user'; }}
+                        onFocusCapture={() => { loginModeRef.current = 'user'; }}
+                      />
+                    </div>
+                    <div className="rounded-xl border border-blue-300/20 bg-blue-500/15 p-3 transition hover:border-blue-200/40 hover:bg-blue-400/20">
+                      <div className="mb-3 flex items-center justify-center gap-2 text-sm font-semibold text-blue-50">
+                        {selectedMode === 'admin' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
+                        Admin Login
+                      </div>
+                      <div
+                        ref={adminGoogleButtonRef}
+                        className="citymind-google-button flex min-h-10 justify-center"
+                        aria-label="Admin Login with Google"
+                        onMouseEnter={() => { loginModeRef.current = 'admin'; }}
+                        onFocusCapture={() => { loginModeRef.current = 'admin'; }}
+                      />
+                    </div>
                   </>
                 )}
               </div>
@@ -486,12 +484,6 @@ const Login = () => {
         </section>
       </div>
 
-      <div aria-hidden="true" style={hiddenGoogleButtonStyle}>
-        <div ref={userGoogleButtonRef} />
-      </div>
-      <div aria-hidden="true" style={hiddenGoogleButtonStyle}>
-        <div ref={adminGoogleButtonRef} />
-      </div>
 
       <footer className="login-bar-glow relative z-20 flex h-9 w-full items-center justify-center border-t border-cyan-200/12 bg-[#07182c]/90 px-4 text-center text-[11px] font-medium tracking-[0.08em] text-cyan-100/80 backdrop-blur-xl">
         @ Copyright All Rights Reserved 2026, Yukta
