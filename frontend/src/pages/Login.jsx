@@ -16,6 +16,17 @@ import { useAuth } from '../auth/AuthContext';
 const GIS_SCRIPT_ID = 'google-identity-services';
 const GOOGLE_BUTTON_WIDTH = 400;
 
+const hiddenGoogleButtonStyle = {
+  position: 'absolute',
+  left: '-9999px',
+  top: '0',
+  width: `${GOOGLE_BUTTON_WIDTH}px`,
+  height: '48px',
+  opacity: 0,
+  pointerEvents: 'auto',
+  overflow: 'hidden',
+};
+
 const maskClientId = (value) => {
   if (!value) return 'missing';
   if (value.length <= 14) return 'configured';
@@ -30,19 +41,6 @@ const oauthWarn = (message, detail = {}) => {
   console.warn('[CityMind OAuth]', message, detail);
 };
 
-const getMomentReason = (notification) => {
-  if (!notification) return 'unknown';
-  if (notification.isNotDisplayed?.()) {
-    return notification.getNotDisplayedReason?.() || 'not_displayed';
-  }
-  if (notification.isSkippedMoment?.()) {
-    return notification.getSkippedReason?.() || 'skipped';
-  }
-  if (notification.isDismissedMoment?.()) {
-    return notification.getDismissedReason?.() || 'dismissed';
-  }
-  return 'unknown';
-};
 
 const objectives = [
   { title: 'Risk Prioritization', detail: 'Deterministic intelligence ranks city risk zones.' },
@@ -114,7 +112,7 @@ const Login = () => {
             setSelectedMode(loginModeRef.current);
             setStatus('authenticating');
             setError('');
-            oauthLog('credential received; sending to backend', {
+            oauthLog(`credential received for mode: ${loginModeRef.current}`, {
               mode: loginModeRef.current,
               origin: window.location.origin,
             });
@@ -134,6 +132,11 @@ const Login = () => {
                 loginModeRef.current === 'user'
                   ? '/user'
                   : '/';
+
+              oauthLog('route selected after login', {
+                mode: loginModeRef.current,
+                destination,
+              });
 
               navigate(destination, {
                 replace: true,
@@ -272,43 +275,68 @@ const Login = () => {
     status === 'loading' ||
     status === 'authenticating';
 
-  const prepareGoogleLogin = (mode) => {
-    loginModeRef.current = mode;
-    setError('');
-    oauthLog('Google sign-in launch requested', {
-      mode,
-      clientId: maskClientId(clientId),
-      origin: window.location.origin,
-    });
+  const findHiddenGoogleButton = (mode) => {
+    const container = mode === 'user'
+      ? userGoogleButtonRef.current
+      : adminGoogleButtonRef.current;
+
+    return container?.querySelector('div[role="button"], button, iframe') || null;
   };
 
   const startGoogleLogin = (mode) => {
-    prepareGoogleLogin(mode);
+    loginModeRef.current = mode;
+    setError('');
+    oauthLog(`${mode} login clicked`, {
+      mode,
+      clientId: maskClientId(clientId),
+      clientIdPresent: Boolean(clientId),
+      gisReady: Boolean(window.google?.accounts?.id) && status === 'ready',
+      origin: window.location.origin,
+    });
+    oauthLog('selected login mode', { mode });
 
-    if (!window.google?.accounts?.id) {
-      oauthWarn('Google Identity Services unavailable during click', {
+    if (status !== 'ready' || !window.google?.accounts?.id) {
+      oauthWarn('GIS not ready during visible login click', {
+        mode,
+        status,
+        clientIdPresent: Boolean(clientId),
+        origin: window.location.origin,
+      });
+      setStatus(status === 'error' ? 'error' : 'loading');
+      setError('Google sign-in is still loading. Please retry in a moment.');
+      return;
+    }
+
+    const googleButton = findHiddenGoogleButton(mode);
+
+    if (!googleButton) {
+      oauthWarn('hidden GIS button not found', {
         mode,
         origin: window.location.origin,
       });
-      setStatus('loading');
-      setRetryKey((value) => value + 1);
+      setStatus('error');
+      setError('Google sign-in button could not be initialized. Please refresh and retry.');
       return;
     }
 
     setSelectedMode(mode);
-    window.google.accounts.id.prompt((notification) => {
-      const reason = getMomentReason(notification);
-      oauthWarn('One Tap fallback did not open a credential prompt', {
-        mode,
-        reason,
-        origin: window.location.origin,
-      });
+    oauthLog('GIS button found, forwarding click', {
+      mode,
+      tagName: googleButton.tagName,
+    });
+
+    try {
+      googleButton.click();
+      oauthLog('hidden GIS button click attempted', { mode });
+      window.setTimeout(() => {
+        setSelectedMode((current) => (current === mode ? null : current));
+      }, 1000);
+    } catch (oauthError) {
+      oauthWarn('hidden GIS button click failed', { mode, error: oauthError });
       setSelectedMode(null);
       setStatus('error');
-      setError(
-        `Google sign-in could not be opened (${reason}). Confirm this origin is authorized for the OAuth client and browser popups/cookies are allowed.`,
-      );
-    });
+      setError('Google sign-in button could not be initialized. Please refresh and retry.');
+    }
   };
 
   return (
@@ -408,52 +436,26 @@ const Login = () => {
 
                 {!busy && (
                   <>
-                    <div
-                      className="relative"
-                      onPointerDownCapture={() => prepareGoogleLogin('user')}
-                      onFocusCapture={() => prepareGoogleLogin('user')}
+                    <button
+                      type="button"
+                      onClick={() => startGoogleLogin('user')}
+                      disabled={Boolean(selectedMode)}
+                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-cyan-200/15 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition hover:border-cyan-200/35 hover:bg-cyan-300/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/60 disabled:cursor-not-allowed disabled:opacity-70"
+                      aria-label="User Login with Google"
                     >
-                      <button
-                        type="button"
-                        onClick={() => startGoogleLogin('user')}
-                        disabled={Boolean(selectedMode)}
-                        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-cyan-200/15 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition hover:border-cyan-200/35 hover:bg-cyan-300/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/60 disabled:cursor-not-allowed disabled:opacity-70 group-hover:border-cyan-200/35 group-hover:bg-cyan-300/15"
-                        aria-label="User Login with Google"
-                      >
-                        {selectedMode === 'user' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UserRound className="h-4 w-4" />}
-                        User Login
-                      </button>
-                      {status === 'ready' && (
-                        <div
-                          ref={userGoogleButtonRef}
-                          className="absolute inset-0 z-10 overflow-hidden rounded-xl opacity-0"
-                          aria-hidden="true"
-                        />
-                      )}
-                    </div>
-                    <div
-                      className="relative"
-                      onPointerDownCapture={() => prepareGoogleLogin('admin')}
-                      onFocusCapture={() => prepareGoogleLogin('admin')}
+                      {selectedMode === 'user' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UserRound className="h-4 w-4" />}
+                      User Login
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => startGoogleLogin('admin')}
+                      disabled={Boolean(selectedMode)}
+                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-blue-300/20 bg-blue-500/15 px-4 py-3 text-sm font-semibold text-blue-50 transition hover:border-blue-200/40 hover:bg-blue-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60 disabled:cursor-not-allowed disabled:opacity-70"
+                      aria-label="Admin Login with Google"
                     >
-                      <button
-                        type="button"
-                        onClick={() => startGoogleLogin('admin')}
-                        disabled={Boolean(selectedMode)}
-                        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-blue-300/20 bg-blue-500/15 px-4 py-3 text-sm font-semibold text-blue-50 transition hover:border-blue-200/40 hover:bg-blue-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60 disabled:cursor-not-allowed disabled:opacity-70 group-hover:border-blue-200/40 group-hover:bg-blue-400/20"
-                        aria-label="Admin Login with Google"
-                      >
-                        {selectedMode === 'admin' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
-                        Admin Login
-                      </button>
-                      {status === 'ready' && (
-                        <div
-                          ref={adminGoogleButtonRef}
-                          className="absolute inset-0 z-10 overflow-hidden rounded-xl opacity-0"
-                          aria-hidden="true"
-                        />
-                      )}
-                    </div>
+                      {selectedMode === 'admin' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
+                      Admin Login
+                    </button>
                   </>
                 )}
               </div>
@@ -482,6 +484,13 @@ const Login = () => {
             </div>
           </div>
         </section>
+      </div>
+
+      <div aria-hidden="true" style={hiddenGoogleButtonStyle}>
+        <div ref={userGoogleButtonRef} />
+      </div>
+      <div aria-hidden="true" style={hiddenGoogleButtonStyle}>
+        <div ref={adminGoogleButtonRef} />
       </div>
 
       <footer className="login-bar-glow relative z-20 flex h-9 w-full items-center justify-center border-t border-cyan-200/12 bg-[#07182c]/90 px-4 text-center text-[11px] font-medium tracking-[0.08em] text-cyan-100/80 backdrop-blur-xl">
