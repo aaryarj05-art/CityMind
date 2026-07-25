@@ -51,6 +51,7 @@ const Login = () => {
   const {
     authenticated,
     loading: sessionLoading,
+    loginMode,
     loginWithCredential,
   } = useAuth();
 
@@ -304,7 +305,7 @@ const Login = () => {
   }, [status, retryKey]);
 
   if (!sessionLoading && authenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={loginMode === 'user' ? '/user' : '/'} replace />;
   }
 
   const reason = searchParams.get('reason');

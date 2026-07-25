@@ -38,7 +38,7 @@ const IncidentFeed = ({ incidents = [], showEvidence = true }) => {
                   <StatusBadge status={incident.status} />
                 </div>
                 <p className="text-xs text-slate-400 mt-1 mb-2">
-                  Dept: <span className="text-slate-300">{incident.responding_department}</span> â€¢ {formatDate(incident.reported_at)}
+                  Dept: <span className="text-slate-300">{incident.responding_department}</span> - {formatDate(incident.reported_at)}
                 </p>
                 {showEvidence && (
                   <button

@@ -231,9 +231,9 @@ const Incidents = () => {
                       </div>
                       <p className="text-xs text-slate-400 flex flex-wrap gap-x-2 gap-y-1">
                         <span>Area: <strong className="text-slate-300">{inc.area_name} (#{inc.area_id})</strong></span>
-                        <span>â€¢</span>
+                        <span>-</span>
                         <span>Urgency: <strong className="text-blue-300">{inc.recommended_response_urgency}</strong></span>
-                        <span>â€¢</span>
+                        <span>-</span>
                         <span>Calculated: {formatDate(inc.last_calculated)}</span>
                         {inc.latest_citizen_report_submitted_at && (
                           <>
@@ -369,7 +369,7 @@ const Incidents = () => {
                 <ul className="mt-1.5 space-y-1">
                   {incidentDetails.reasons.map((reason, idx) => (
                     <li key={idx} className="text-slate-300 text-xs flex items-start gap-1.5">
-                      <span className="text-yellow-400 mt-0.5">â€¢</span>
+                      <span className="text-yellow-400 mt-0.5">-</span>
                       <span>{reason}</span>
                     </li>
                   ))}

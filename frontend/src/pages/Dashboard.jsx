@@ -390,7 +390,7 @@ const Dashboard = () => {
                               <td className="px-4 py-3 font-semibold text-white font-mono">{disp.dispatch_code}</td>
                               <td className="px-4 py-3 text-slate-300">{disp.status}</td>
                               <td className="px-4 py-3 text-slate-300 font-mono">
-                                {disp.estimated_arrival_minutes ? `${disp.estimated_arrival_minutes.toFixed(1)} min` : 'â€”'}
+                                {disp.estimated_arrival_minutes ? `${disp.estimated_arrival_minutes.toFixed(1)} min` : '-'}
                               </td>
                               <td className="px-4 py-3 text-right">
                                 <button
@@ -490,7 +490,7 @@ const Dashboard = () => {
                                 <RiskLevelBadge level={zone.risk_level} />
                               </td>
                               <td className="px-6 py-4 text-slate-300 capitalize">
-                                {topFactor ? topFactor.factor.replace('_', ' ') : 'â€”'}
+                                {topFactor ? topFactor.factor.replace('_', ' ') : '-'}
                               </td>
                             </tr>
                           );

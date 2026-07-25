@@ -66,7 +66,12 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const handleCleared = () => clearLocalAuth();
-    const handleDenied = (event) => setAccessDenied(event.detail || 'Access denied.');
+    const handleDenied = (event) => {
+      const detail = event.detail;
+      const message = typeof detail === 'object' ? detail.message || detail.detail : detail;
+      if (String(message || '').trim().toLowerCase() === 'permission denied') return;
+      setAccessDenied(message || 'Access denied.');
+    };
     const handleDeniedClear = () => setAccessDenied('');
     window.addEventListener('citymind-auth-cleared', handleCleared);
     window.addEventListener('citymind-access-denied', handleDenied);
