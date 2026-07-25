@@ -1,8 +1,11 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class GoogleCredentialRequest(BaseModel):
     credential: str = Field(min_length=1, max_length=10000)
+    login_mode: str | None = "user"
 
 
 class AuthUserResponse(BaseModel):
@@ -22,12 +25,14 @@ class GoogleLoginResponse(BaseModel):
     expires_in: int
     user: AuthUserResponse
     judge_mode: bool = False
+    login_mode: Literal["user", "admin"] = "user"
 
 
 class CurrentUserResponse(BaseModel):
     user: AuthUserResponse
     permissions: list[str]
     judge_mode: bool = False
+    login_mode: Literal["user", "admin"] = "user"
 
 
 class LogoutResponse(BaseModel):
@@ -43,3 +48,4 @@ class SessionStatusResponse(BaseModel):
     role: str
     department: str
     judge_mode: bool = False
+    login_mode: Literal["user", "admin"] = "user"

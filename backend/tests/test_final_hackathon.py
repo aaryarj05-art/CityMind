@@ -102,20 +102,20 @@ def test_dashboard_changes_after_incident_and_hospital_mutations(simulation_db):
     assert after.average_hospital_occupancy > before.average_hospital_occupancy
 
 
-def test_google_login_grants_demo_admin_for_any_verified_account(monkeypatch, simulation_db):
+def test_google_login_mode_controls_demo_role_for_any_verified_account(monkeypatch, simulation_db):
     claims = {"sub": "judge-open-test", "email": "judge@example.test", "name": "Judge", "email_verified": True}
     monkeypatch.setenv("CITYMIND_JUDGE_OPEN_ACCESS", "true")
-    user = auth_service.upsert_google_user(simulation_db, claims)
+    user = auth_service.upsert_google_user(simulation_db, claims, login_mode="admin")
     assert judge_open_access() is True and user.role == "DemoAdmin"
-    token, _, token_claims = auth_service.create_session_token(user)
-    assert token and token_claims["judge_mode"] is True
+    token, _, token_claims = auth_service.create_session_token(user, login_mode="admin")
+    assert token and token_claims["judge_mode"] is True and token_claims["login_mode"] == "admin"
     auth_service.record_auth_event(simulation_db, event_type="login_success", success=True, user=user)
     assert simulation_db.query(AuthenticationAudit).order_by(AuthenticationAudit.id.desc()).first().judge_mode is True
     monkeypatch.setenv("CITYMIND_JUDGE_OPEN_ACCESS", "false")
     monkeypatch.setenv("CITYMIND_ROLE_MAPPINGS_JSON", "{}")
     user.is_active = False; simulation_db.commit()
-    user = auth_service.upsert_google_user(simulation_db, claims)
-    assert user.role == "DemoAdmin" and user.is_active is True and role_for_email(claims["email"]).role == "Guest"
+    user = auth_service.upsert_google_user(simulation_db, claims, login_mode="user")
+    assert user.role == "DemoUser" and user.is_active is True and role_for_email(claims["email"]).role == "Guest"
     simulation_db.query(AuthenticationAudit).filter(AuthenticationAudit.user_id == user.id).delete()
     simulation_db.delete(user); simulation_db.commit()
 
@@ -126,7 +126,7 @@ def test_frontend_role_input_and_claim_escalation_are_ignored(monkeypatch, simul
     monkeypatch.setenv("CITYMIND_JUDGE_OPEN_ACCESS", "false")
     monkeypatch.setenv("CITYMIND_ROLE_MAPPINGS_JSON", "{}")
     user = auth_service.upsert_google_user(simulation_db, {"sub": "role-attack", "email": "attacker@example.test",
-        "name": "Attacker", "email_verified": True, "role": "Guest"})
+        "name": "Attacker", "email_verified": True, "role": "Guest"}, login_mode="admin")
     assert user.role == "DemoAdmin"
     simulation_db.delete(user); simulation_db.commit()
 

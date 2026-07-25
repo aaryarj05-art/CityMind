@@ -81,11 +81,12 @@ def google_login(payload: GoogleCredentialRequest, request: Request, db: Session
     user = None
     logger.info("Google login exchange started", extra={"origin": request.headers.get("origin"), "client_ip": client_ip})
     try:
+        login_mode = auth_service.normalize_login_mode(payload.login_mode)
         claims = auth_service.verify_google_credential(payload.credential)
-        user = auth_service.upsert_google_user(db, claims)
+        user = auth_service.upsert_google_user(db, claims, login_mode=login_mode)
         if not user.is_active:
             raise auth_service.AuthenticationError("inactive_user")
-        token, expires_in, _ = auth_service.create_session_token(user)
+        token, expires_in, _ = auth_service.create_session_token(user, login_mode=login_mode)
     except auth_service.AuthConfigurationError as exc:
         auth_service.record_auth_event(
             db, event_type="login_failure", success=False,
@@ -107,7 +108,7 @@ def google_login(payload: GoogleCredentialRequest, request: Request, db: Session
         logger.warning("Google login failed", extra={"reason": exc.reason_code, "origin": request.headers.get("origin"), "client_ip": client_ip})
         raise HTTPException(status_code=401, detail=detail) from exc
 
-    logger.info("Google login succeeded", extra={"user_id": user.id if user else None, "role": user.role if user else None, "origin": request.headers.get("origin")})
+    logger.info("Google login succeeded", extra={"user_id": user.id if user else None, "role": user.role if user else None, "login_mode": login_mode, "origin": request.headers.get("origin")})
     auth_service.record_auth_event(
         db, event_type="login_success", success=True, user=user,
         client_ip=client_ip, user_agent=user_agent,
@@ -117,6 +118,7 @@ def google_login(payload: GoogleCredentialRequest, request: Request, db: Session
         expires_in=expires_in,
         user=AuthUserResponse.model_validate(user),
         judge_mode=judge_open_access(),
+        login_mode=login_mode,
     )
 
 
@@ -126,6 +128,7 @@ def auth_me(current: AuthenticatedUser = Depends(get_current_user)):
         user=AuthUserResponse.model_validate(current.user),
         permissions=permissions_for_role(current.user.role),
         judge_mode=bool(current.claims.get("judge_mode", False)),
+        login_mode=auth_service.normalize_login_mode(current.claims.get("login_mode") or auth_service.login_mode_for_role(current.user.role)),
     )
 
 
@@ -158,4 +161,5 @@ def session_status(current: AuthenticatedUser = Depends(get_current_user)):
         role=current.user.role,
         department=current.user.department,
         judge_mode=bool(current.claims.get("judge_mode", False)),
+        login_mode=auth_service.normalize_login_mode(current.claims.get("login_mode") or auth_service.login_mode_for_role(current.user.role)),
     )

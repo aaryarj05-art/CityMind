@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 ROLES = (
     "Mayor", "Commissioner", "Police", "Fire", "Healthcare",
-    "DisasterManagement", "Utility", "Guest", "DemoAdmin",
+    "DisasterManagement", "Utility", "Guest", "DemoUser", "DemoAdmin",
 )
 
 ALL_PERMISSIONS = frozenset({
@@ -22,6 +22,7 @@ READ_PERMISSIONS = frozenset(permission for permission in ALL_PERMISSIONS if per
 
 PERMISSION_MATRIX: dict[str, frozenset[str]] = {
     "DemoAdmin": ALL_PERMISSIONS,
+    "DemoUser": frozenset({"dashboard.read"}),
     "Mayor": READ_PERMISSIONS | {"ai.query", "audit.read"},
     "Commissioner": (READ_PERMISSIONS - {"audit.read"}) | {"ai.query", "dispatch.approve"},
     "Police": frozenset({

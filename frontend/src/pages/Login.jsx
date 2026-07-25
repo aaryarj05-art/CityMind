@@ -135,8 +135,10 @@ const Login = () => {
             oauthLog('selected login mode at credential time', { mode: credentialMode });
 
             try {
+              oauthLog('backend auth started', { mode: credentialMode });
               const user = await loginWithCredential(
                 credentialResponse.credential,
+                credentialMode,
               );
 
               oauthLog('backend authentication succeeded', {
@@ -145,13 +147,14 @@ const Login = () => {
                 department: user?.department,
               });
 
+              const sessionMode = user?.login_mode || credentialMode;
               const destination =
-                credentialMode === 'user'
+                sessionMode === 'user'
                   ? '/user'
                   : '/';
 
               oauthLog('route selected after login', {
-                mode: credentialMode,
+                mode: sessionMode,
                 destination,
               });
 

@@ -17,7 +17,7 @@ import {
 import { useAuth } from '../../auth/AuthContext';
 
 const Sidebar = () => {
-  const { user, hasPermission, logout } = useAuth();
+  const { user, loginMode, hasPermission, logout } = useAuth();
 
   const navItems = [
     {
@@ -86,7 +86,10 @@ const Sidebar = () => {
       icon: Settings,
       permission: 'settings.manage',
     },
-  ].filter((item) => hasPermission(item.permission));
+  ].filter((item) => {
+    if (loginMode === 'user') return item.path === '/' || item.path === '/user';
+    return hasPermission(item.permission);
+  });
 
   const initials =
     user?.name

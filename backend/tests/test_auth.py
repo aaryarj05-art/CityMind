@@ -83,13 +83,38 @@ def test_valid_google_credential_issues_citymind_session(client, monkeypatch):
     assert response.status_code == 200
     data = response.json()
     assert data["token_type"] == "bearer" and data["expires_in"] == 900
-    assert data["user"]["role"] == "DemoAdmin"
+    assert data["user"]["role"] == "DemoUser"
+    assert data["login_mode"] == "user"
     decoded = auth_service.decode_session_token(data["access_token"])
     assert decoded["google_sub"] == "phase6-google-user"
+    assert decoded["login_mode"] == "user"
     assert decoded["iss"] == "citymind" and decoded["aud"] == "citymind-api"
     db = SessionLocal()
     assert db.query(AuthenticationAudit).filter_by(event_type="login_success", success=True).count() == 1
     db.close()
+
+
+def test_google_credential_admin_mode_issues_admin_session(client, monkeypatch):
+    monkeypatch.setattr(auth_service.id_token, "verify_oauth2_token", lambda *args, **kwargs: google_claims())
+    response = client.post("/api/auth/google", json={"credential": "mock-google-id-token", "login_mode": "admin"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["user"]["role"] == "DemoAdmin"
+    assert data["login_mode"] == "admin"
+    assert "settings.manage" in permissions_for_role(data["user"]["role"])
+    decoded = auth_service.decode_session_token(data["access_token"])
+    assert decoded["login_mode"] == "admin"
+
+
+def test_invalid_login_mode_defaults_to_user(client, monkeypatch):
+    monkeypatch.setattr(auth_service.id_token, "verify_oauth2_token", lambda *args, **kwargs: google_claims(sub="phase6-invalid-mode"))
+    response = client.post("/api/auth/google", json={"credential": "mock-token", "login_mode": "root"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["login_mode"] == "user"
+    assert data["user"]["role"] == "DemoUser"
+    assert "dashboard.read" in permissions_for_role(data["user"]["role"])
+    assert "ai.query" not in permissions_for_role(data["user"]["role"])
 
 
 @pytest.mark.parametrize("claims,reason", [
@@ -191,6 +216,7 @@ def test_auth_me_and_session_status(client):
     status = client.get("/api/auth/session-status", headers=auth_header(token))
     assert status.status_code == 200
     assert status.json()["authenticated"] is True
+    assert status.json()["login_mode"] == "user"
     assert 0 < status.json()["remaining_seconds"] <= 900
 
 
@@ -208,6 +234,7 @@ def test_logout_records_audit_without_claiming_revocation(client):
 def test_every_role_has_a_centralized_permission_entry():
     assert set(ROLES) == set(PERMISSION_MATRIX)
     assert PERMISSION_MATRIX["DemoAdmin"] == ALL_PERMISSIONS
+    assert PERMISSION_MATRIX["DemoUser"] == {"dashboard.read"}
     assert PERMISSION_MATRIX["Guest"] == {"dashboard.read"}
     for role in ROLES:
         assert set(permissions_for_role(role)) <= ALL_PERMISSIONS
@@ -218,6 +245,13 @@ def test_every_role_has_a_centralized_permission_entry():
 
 def test_unauthenticated_operational_route_returns_401(client):
     assert client.get("/api/dashboard").status_code == 401
+
+
+def test_demo_user_is_forbidden_from_admin_routes(client):
+    _, token = create_user(role="DemoUser", suffix="demo-user")
+    assert client.get("/api/dashboard", headers=auth_header(token)).status_code == 200
+    assert client.get("/api/risk/summary", headers=auth_header(token)).status_code == 403
+    assert client.post("/api/ai/query", headers=auth_header(token), json={"message": "status"}).status_code == 403
 
 
 def test_guest_is_forbidden_from_operational_and_ai_routes(client):

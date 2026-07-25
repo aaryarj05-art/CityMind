@@ -35,3 +35,16 @@ test('judge banner appears once and Live Response uses a bounded shortlist', () 
   assert.match(live, /slice\(0, 8\)/);
   assert.match(live, /resourcesAPI\.getPage/);
 });
+
+
+test('login request includes selected login_mode', () => {
+  const apiSource = fs.readFileSync(new URL('./api.js', import.meta.url), 'utf8');
+  assert.match(apiSource, /google: \(credential, loginMode = 'user'\)/);
+  assert.match(apiSource, /credential, login_mode: loginMode/);
+});
+
+test('sidebar limits user mode to Overview and User', () => {
+  const sidebar = fs.readFileSync(new URL('../components/layout/Sidebar.jsx', import.meta.url), 'utf8');
+  assert.match(sidebar, /loginMode === 'user'/);
+  assert.match(sidebar, /item\.path === '\/' \|\| item\.path === '\/user'/);
+});

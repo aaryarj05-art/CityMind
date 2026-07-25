@@ -38,7 +38,7 @@ api.interceptors.response.use(
 );
 
 export const authAPI = {
-  google: (credential) => api.post('/auth/google', { credential }),
+  google: (credential, loginMode = 'user') => api.post('/auth/google', { credential, login_mode: loginMode }),
   me: () => api.get('/auth/me'), logout: () => api.post('/auth/logout'),
   sessionStatus: () => api.get('/auth/session-status'),
 };

@@ -47,6 +47,21 @@ def _mask_client_id(value: str) -> str:
         return "configured"
     return f"{value[:6]}...{value[-8:]}"
 
+
+def normalize_login_mode(login_mode: str | None) -> str:
+    return "admin" if login_mode == "admin" else "user"
+
+
+def role_assignment_for_login_mode(login_mode: str | None) -> RoleAssignment:
+    mode = normalize_login_mode(login_mode)
+    if mode == "admin":
+        return RoleAssignment(role="DemoAdmin", department="Hackathon Admin")
+    return RoleAssignment(role="DemoUser", department="Citizen Demo")
+
+
+def login_mode_for_role(role: str | None) -> str:
+    return "admin" if role == "DemoAdmin" else "user"
+
 @dataclass(frozen=True)
 class AuthenticatedUser:
     user: User
@@ -110,8 +125,8 @@ def verify_google_credential(credential: str) -> dict[str, Any]:
     return claims
 
 
-def upsert_google_user(db: Session, claims: dict[str, Any]) -> User:
-    assignment = RoleAssignment(role="DemoAdmin", department="Hackathon Judge")
+def upsert_google_user(db: Session, claims: dict[str, Any], login_mode: str | None = None) -> User:
+    assignment = role_assignment_for_login_mode(login_mode)
     user = db.query(User).filter(User.google_sub == str(claims["sub"])).first()
     now = datetime.now(timezone.utc)
     if user is None:
@@ -130,11 +145,12 @@ def upsert_google_user(db: Session, claims: dict[str, Any]) -> User:
     return user
 
 
-def create_session_token(user: User, now: datetime | None = None) -> tuple[str, int, dict[str, Any]]:
+def create_session_token(user: User, now: datetime | None = None, login_mode: str | None = None) -> tuple[str, int, dict[str, Any]]:
     secret = _jwt_secret()
     issued_at = now or datetime.now(timezone.utc)
     duration = session_minutes() * 60
     expiry = issued_at + timedelta(seconds=duration)
+    mode = normalize_login_mode(login_mode or login_mode_for_role(user.role))
     claims = {
         "sub": str(user.id),
         "google_sub": user.google_sub,
@@ -144,6 +160,7 @@ def create_session_token(user: User, now: datetime | None = None) -> tuple[str, 
         "department": user.department,
         "email_verified": user.email_verified,
         "judge_mode": judge_open_access(),
+        "login_mode": mode,
         "session_id": str(uuid.uuid4()),
         "iat": int(issued_at.timestamp()),
         "exp": int(expiry.timestamp()),

@@ -21,6 +21,7 @@ export const AuthProvider = ({ children }) => {
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [accessDenied, setAccessDenied] = useState('');
   const [judgeMode, setJudgeMode] = useState(false);
+  const [loginMode, setLoginMode] = useState(getStoredUser()?.login_mode || 'user');
 
   const clearLocalAuth = useCallback(() => {
     clearSession();
@@ -29,6 +30,7 @@ export const AuthProvider = ({ children }) => {
     setExpiry(0);
     setRemainingSeconds(0);
     setJudgeMode(false);
+    setLoginMode('user');
   }, []);
 
   const verifySession = useCallback(async () => {
@@ -40,8 +42,10 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       const [meResponse, statusResponse] = await Promise.all([authAPI.me(), authAPI.sessionStatus()]);
-      const nextUser = meResponse.data.user;
+      const nextLoginMode = statusResponse.data.login_mode || meResponse.data.login_mode || meResponse.data.user?.login_mode || 'user';
+      const nextUser = { ...meResponse.data.user, login_mode: nextLoginMode };
       setUser(nextUser);
+      setLoginMode(nextLoginMode);
       setPermissions(meResponse.data.permissions || []);
       setExpiry(statusResponse.data.expiry || 0);
       setRemainingSeconds(statusResponse.data.remaining_seconds || 0);
@@ -85,15 +89,18 @@ export const AuthProvider = ({ children }) => {
     return () => window.clearInterval(timer);
   }, [expiry, clearLocalAuth, navigate]);
 
-  const loginWithCredential = useCallback(async (credential) => {
-    const response = await authAPI.google(credential);
+  const loginWithCredential = useCallback(async (credential, loginMode = 'user') => {
+    const response = await authAPI.google(credential, loginMode);
     const expiresAt = Math.floor(Date.now() / 1000) + response.data.expires_in;
-    storeSession({ accessToken: response.data.access_token, user: response.data.user, expiry: expiresAt });
-    setUser(response.data.user);
+    const sessionLoginMode = response.data.login_mode || loginMode;
+    const sessionUser = { ...response.data.user, login_mode: sessionLoginMode };
+    storeSession({ accessToken: response.data.access_token, user: sessionUser, expiry: expiresAt });
+    setUser(sessionUser);
+    setLoginMode(sessionLoginMode);
     setExpiry(expiresAt);
     const verified = await verifySession();
     if (!verified) throw new Error('Session verification failed');
-    return response.data.user;
+    return sessionUser;
   }, [verifySession]);
 
   const logout = useCallback(async () => {
@@ -118,11 +125,12 @@ export const AuthProvider = ({ children }) => {
     remainingSeconds,
     sessionExpiring: remainingSeconds > 0 && remainingSeconds <= 120,
     judgeMode,
+    loginMode,
     loginWithCredential,
     logout,
     hasPermission,
     verifySession,
-  }), [user, permissions, loading, remainingSeconds, judgeMode, loginWithCredential, logout, hasPermission, verifySession]);
+  }), [user, permissions, loading, remainingSeconds, judgeMode, loginMode, loginWithCredential, logout, hasPermission, verifySession]);
 
   return (
     <AuthContext.Provider value={value}>
